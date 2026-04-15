@@ -24,7 +24,7 @@ services:
       - MONGODB_URI=mongodb://mongo:27017/chatbot-platform
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=changeme_in_production
-      - FRONTEND_URL=http://localhost:12824
+      - FRONTEND_URL=http://localhost:2202
     depends_on:
       - mongo
       - redis
