@@ -27,7 +27,7 @@ router.get('/:id', auth, async (req, res) => {
     const broadcast = await Broadcast.findOne({ _id: req.params.id, ownedBy: req.user._id })
       .populate('channel', 'name platform credentials')
       .populate('audience.segments', 'name');
-    if (!broadcast) return res.status(404).json({ error: 'Broadcast not found' });
+    if (!broadcast) return res.status(404).json({ error: '找不到此廣播' });
     res.json({ broadcast });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -66,7 +66,7 @@ router.put('/:id', auth, async (req, res) => {
       { name, audience, messages, scheduledAt, status: scheduledAt ? 'scheduled' : 'draft' },
       { new: true }
     );
-    if (!broadcast) return res.status(404).json({ error: 'Broadcast not found or cannot be edited' });
+    if (!broadcast) return res.status(404).json({ error: '找不到此廣播或無法編輯' });
     res.json({ broadcast });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -81,7 +81,7 @@ router.post('/:id/send', auth, async (req, res) => {
       ownedBy: req.user._id,
       status: { $in: ['draft', 'scheduled'] }
     }).populate('channel');
-    if (!broadcast) return res.status(404).json({ error: 'Broadcast not found' });
+    if (!broadcast) return res.status(404).json({ error: '找不到此廣播' });
 
     broadcast.status = 'sending';
     await broadcast.save();
@@ -109,7 +109,7 @@ router.post('/:id/cancel', auth, async (req, res) => {
       { status: 'cancelled' },
       { new: true }
     );
-    if (!broadcast) return res.status(404).json({ error: 'Broadcast not found' });
+    if (!broadcast) return res.status(404).json({ error: '找不到此廣播' });
     res.json({ broadcast });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -120,7 +120,7 @@ router.post('/:id/cancel', auth, async (req, res) => {
 router.delete('/:id', auth, async (req, res) => {
   try {
     await Broadcast.findOneAndDelete({ _id: req.params.id, ownedBy: req.user._id, status: 'draft' });
-    res.json({ message: 'Broadcast deleted' });
+    res.json({ message: '廣播已刪除' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -129,7 +129,7 @@ router.delete('/:id', auth, async (req, res) => {
 // Helper
 async function resolveAudience(broadcast) {
   const { type, segments, tags, contacts: contactIds } = broadcast.audience;
-  const baseQuery = { channel: broadcast.channel._id, isFollowing: true, isBlocked: false };
+  const baseQuery = { channel: broadcast.channel._id, isFollowing: true, isBlocked: { $ne: true } };
 
   switch (type) {
     case 'all':

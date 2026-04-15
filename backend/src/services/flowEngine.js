@@ -14,13 +14,20 @@ async function processMessage({ contact, flow, channel, text, postbackPayload, i
     let startNodeId;
 
     if (isResuming && contact.currentFlowState?.waitingForInput) {
-      // Continue from where we left off
-      startNodeId = contact.currentFlowState.nodeId;
+      // 儲存使用者輸入的值
+      const inputNodeId = contact.currentFlowState.nodeId;
       if (contact.currentFlowState.inputField && text) {
         contact.currentFlowState.variables = contact.currentFlowState.variables || new Map();
         contact.currentFlowState.variables.set(contact.currentFlowState.inputField, text);
       }
       contact.currentFlowState.waitingForInput = false;
+
+      // 跳過 input 節點，直接從下一個節點繼續
+      const nextEdge = flow.edges.find(e =>
+        e.source === inputNodeId && (!e.sourceHandle || e.sourceHandle === 'output')
+      );
+      if (!nextEdge) return; // 沒有下一節點，結束流程
+      startNodeId = nextEdge.target;
     } else {
       // Start from trigger's first connected node
       const triggerNode = flow.nodes.find(n => n.type === 'trigger');
@@ -97,8 +104,10 @@ async function executeNode(nodeId, context, depth = 0) {
       break;
   }
 
-  // Move to next node via edge
-  const nextEdge = flow.edges.find(e => e.source === nodeId && !e.sourceHandle);
+  // Move to next node via edge（sourceHandle 為 null/undefined/'output' 均視為預設出口）
+  const nextEdge = flow.edges.find(e =>
+    e.source === nodeId && (!e.sourceHandle || e.sourceHandle === 'output')
+  );
   if (nextEdge) {
     await executeNode(nextEdge.target, context, depth + 1);
   }

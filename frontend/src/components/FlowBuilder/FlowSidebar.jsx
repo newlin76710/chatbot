@@ -1,14 +1,14 @@
-// FlowSidebar.jsx - draggable node palette
+// FlowSidebar.jsx - 可拖曳節點面板
 import React from 'react';
 
 const NODE_PALETTE = [
-  { type: 'trigger', icon: '⚡', label: 'Trigger', desc: 'Start the flow', color: '#6366F1' },
-  { type: 'message', icon: '💬', label: 'Send Message', desc: 'Text, image, buttons', color: '#22C55E' },
-  { type: 'condition', icon: '◈', label: 'Condition', desc: 'Branch on tag/field', color: '#F59E0B' },
-  { type: 'action', icon: '⚙', label: 'Action', desc: 'Tag, set field, webhook', color: '#A855F7' },
-  { type: 'input', icon: '✎', label: 'User Input', desc: 'Wait & save reply', color: '#3B82F6' },
-  { type: 'delay', icon: '⏱', label: 'Delay', desc: 'Wait before next step', color: '#94A3B8' },
-  { type: 'end', icon: '■', label: 'End', desc: 'Finish the flow', color: '#F43F5E' },
+  { type: 'trigger', icon: '⚡', label: '觸發器', desc: '開始流程', color: '#6366F1' },
+  { type: 'message', icon: '💬', label: '發送訊息', desc: '文字、圖片、按鈕', color: '#22C55E' },
+  { type: 'condition', icon: '◈', label: '條件判斷', desc: '依標籤或欄位分流', color: '#F59E0B' },
+  { type: 'action', icon: '⚙', label: '動作', desc: '標籤、設定欄位、Webhook', color: '#A855F7' },
+  { type: 'input', icon: '✎', label: '等待回覆', desc: '等待並儲存回覆', color: '#3B82F6' },
+  { type: 'delay', icon: '⏱', label: '延遲', desc: '等待後繼續執行', color: '#94A3B8' },
+  { type: 'end', icon: '■', label: '結束', desc: '結束流程', color: '#F43F5E' },
 ];
 
 export default function FlowSidebar() {
@@ -20,7 +20,7 @@ export default function FlowSidebar() {
   return (
     <div style={{ width: 200, background: '#fff', borderRight: '1px solid #E2E8F0', padding: 12, overflowY: 'auto', flexShrink: 0 }}>
       <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-        Nodes
+        節點
       </div>
       {NODE_PALETTE.map(n => (
         <div key={n.type}
@@ -44,7 +44,7 @@ export default function FlowSidebar() {
         </div>
       ))}
       <div style={{ marginTop: 20, padding: '10px', background: '#F8F9FC', borderRadius: 8, fontSize: 11, color: '#94A3B8', lineHeight: 1.5 }}>
-        💡 Drag nodes onto the canvas. Connect them by dragging from the circle handles.
+        💡 將節點拖曳至畫布，透過拖曳圓形控制點連接節點。
       </div>
     </div>
   );

@@ -4,16 +4,23 @@ import api from '../utils/api';
 export const useChannelStore = create((set, get) => ({
   channels: [],
   activeChannelId: localStorage.getItem('activeChannelId'),
+  channelsReady: false,
 
   fetchChannels: async () => {
     const { data } = await api.get('/channels');
-    set({ channels: data.channels });
-    // Auto-select first if none selected
-    if (!get().activeChannelId && data.channels.length > 0) {
-      const id = data.channels[0]._id;
-      localStorage.setItem('activeChannelId', id);
-      set({ activeChannelId: id });
+    const current = get().activeChannelId;
+    const stillValid = data.channels.some(c => c._id === current);
+    let activeChannelId = current;
+    if (!stillValid) {
+      if (data.channels.length > 0) {
+        activeChannelId = data.channels[0]._id;
+        localStorage.setItem('activeChannelId', activeChannelId);
+      } else {
+        activeChannelId = null;
+        localStorage.removeItem('activeChannelId');
+      }
     }
+    set({ channels: data.channels, activeChannelId, channelsReady: true });
   },
 
   setActiveChannel: (id) => {

@@ -187,16 +187,33 @@ async function sendBroadcastNow(broadcast, contacts) {
   let sent = 0;
   let failed = 0;
 
+  console.log(`[廣播] 開始發送 "${broadcast.name}"，受眾數量: ${contacts.length}`);
+
   const lineIds = contacts.filter(c => c.platform === 'line').map(c => c.platformId);
   const messengerIds = contacts.filter(c => c.platform === 'messenger').map(c => c.platformId);
+
+  console.log(`[廣播] LINE 用戶: ${lineIds.length}，Messenger 用戶: ${messengerIds.length}`);
 
   if (lineIds.length > 0 && channel.platform === 'line') {
     try {
       await sendLineMulticast(channel, lineIds, broadcast.messages);
       sent += lineIds.length;
+      console.log(`[廣播] LINE multicast 成功，送出: ${lineIds.length}`);
     } catch (e) {
-      console.error('LINE multicast error:', e.message);
-      failed += lineIds.length;
+      console.error('[廣播] LINE multicast 失敗:', e.response?.data || e.message);
+      // multicast 失敗時改用逐一 push
+      console.log('[廣播] 改用逐一 push...');
+      for (const userId of lineIds) {
+        try {
+          for (const msg of broadcast.messages) {
+            await sendLineMessage(channel, userId, msg);
+          }
+          sent++;
+        } catch (e2) {
+          console.error(`[廣播] push 失敗 (${userId}):`, e2.response?.data || e2.message);
+          failed++;
+        }
+      }
     }
   }
 
@@ -231,7 +248,6 @@ async function addBroadcastJob(broadcastId, scheduledAt) {
       try {
         const broadcast = await Broadcast.findById(broadcastId).populate('channel');
         if (!broadcast || broadcast.status !== 'scheduled') return;
-        const { resolveAudience } = require('../routes/broadcasts');
         // Re-resolve audience at send time
         const contacts = await Contact.find({ channel: broadcast.channel._id, isFollowing: true })
           .select('_id platformId platform');

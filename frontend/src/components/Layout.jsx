@@ -4,12 +4,12 @@ import { useAuthStore } from '../store/authStore';
 import { useChannelStore } from '../store/channelStore';
 
 const NAV = [
-  { to: '/dashboard', icon: '▦', label: 'Dashboard' },
-  { to: '/flows', icon: '⬡', label: 'Flow Builder' },
-  { to: '/broadcasts', icon: '⊕', label: 'Broadcast' },
-  { to: '/segments', icon: '◈', label: 'Segments' },
-  { to: '/contacts', icon: '◉', label: 'Contacts' },
-  { to: '/channels', icon: '⊞', label: 'Channels' },
+  { to: '/dashboard', icon: '▦', label: '儀表板' },
+  { to: '/flows', icon: '⬡', label: '流程編輯' },
+  { to: '/broadcasts', icon: '⊕', label: '廣播訊息' },
+  { to: '/segments', icon: '◈', label: '受眾分群' },
+  { to: '/contacts', icon: '◉', label: '聯絡人' },
+  { to: '/channels', icon: '⊞', label: '頻道管理' },
 ];
 
 export default function Layout() {
@@ -23,7 +23,7 @@ export default function Layout() {
   const handleLogout = () => { logout(); navigate('/login'); };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', sans-serif", background: '#F8F9FC' }}>
+    <div style={{ display: 'flex', height: '100vh', fontFamily: "'Inter', 'Noto Sans TC', sans-serif", background: '#F8F9FC' }}>
       {/* Sidebar */}
       <aside style={{
         width: collapsed ? 64 : 220,
@@ -57,7 +57,7 @@ export default function Layout() {
                 border: '1px solid #334155', fontSize: 12, cursor: 'pointer',
               }}
             >
-              <option value="" disabled>— Select Channel —</option>
+              <option value="" disabled>— 選擇頻道 —</option>
               {channels.map(c => (
                 <option key={c._id} value={c._id}>
                   {c.platform === 'line' ? '🟢' : '🔵'} {c.name}
@@ -95,7 +95,7 @@ export default function Layout() {
               color: '#64748B', cursor: 'pointer', fontSize: 13 }}
           >
             <span style={{ fontSize: 16 }}>{collapsed ? '→' : '←'}</span>
-            {!collapsed && 'Collapse'}
+            {!collapsed && '收合選單'}
           </button>
           {!collapsed && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', marginTop: 4 }}>
@@ -108,7 +108,7 @@ export default function Layout() {
                 <div style={{ color: '#E2E8F0', fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name}</div>
                 <button onClick={handleLogout}
                   style={{ color: '#64748B', fontSize: 11, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
-                  Logout
+                  登出
                 </button>
               </div>
             </div>

@@ -1,6 +1,7 @@
 // routes/analytics.js
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
 const { Contact, Flow, Broadcast } = require('../models');
 
@@ -23,14 +24,14 @@ router.get('/overview', auth, async (req, res) => {
     // Growth over last 30 days
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const growth = await Contact.aggregate([
-      { $match: { channel: require('mongoose').Types.ObjectId(channelId), createdAt: { $gte: thirtyDaysAgo } } },
+      { $match: { channel: new mongoose.Types.ObjectId(channelId), createdAt: { $gte: thirtyDaysAgo } } },
       { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
       { $sort: { _id: 1 } }
     ]);
 
     // Top tags
     const topTags = await Contact.aggregate([
-      { $match: { channel: require('mongoose').Types.ObjectId(channelId) } },
+      { $match: { channel: new mongoose.Types.ObjectId(channelId) } },
       { $unwind: '$tags' },
       { $group: { _id: '$tags', count: { $sum: 1 } } },
       { $sort: { count: -1 } },

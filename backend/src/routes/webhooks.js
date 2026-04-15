@@ -13,14 +13,17 @@ router.post('/line/:channelId', async (req, res) => {
     const channel = await Channel.findById(req.params.channelId);
     if (!channel || channel.platform !== 'line') return;
 
-    // Verify signature
+    // Verify signature（用原始 rawBody，確保位元組一致）
     const sig = req.headers['x-line-signature'];
-    const body = JSON.stringify(req.body);
+    const rawBody = req.rawBody?.toString('utf8') || JSON.stringify(req.body);
     const hmac = crypto
       .createHmac('sha256', channel.credentials.channelSecret)
-      .update(body)
+      .update(rawBody)
       .digest('base64');
-    if (sig !== hmac) return;
+    if (sig !== hmac) {
+      console.warn('[LINE] 簽章驗證失敗，channelId:', req.params.channelId);
+      return;
+    }
 
     const { events } = req.body;
     for (const event of events) {
@@ -77,16 +80,29 @@ async function handleLineEvent(event, channel) {
     triggerType = 'unfollow';
   }
 
-  // Find matching active flow
+  // 優先：若聯絡人在流程中等待輸入，繼續該流程
+  if (contact.currentFlowState?.waitingForInput && text) {
+    const resumeFlow = await Flow.findById(contact.currentFlowState.flowId);
+    if (resumeFlow) {
+      console.log('[LINE] 繼續等待輸入的流程:', resumeFlow.name);
+      await processMessage({ contact, flow: resumeFlow, channel, text, isResuming: true });
+      return;
+    }
+  }
+
+  // 尋找符合觸發條件的流程
   const flows = await Flow.find({ channel: channel._id, isActive: true });
+  console.log('[LINE] 活躍流程數量:', flows.length, '| 觸發類型:', triggerType, '| 文字:', text);
+
   for (const flow of flows) {
     const triggerNode = flow.nodes.find(n => n.type === 'trigger');
     if (!triggerNode) continue;
 
-    const t = triggerNode.data.trigger;
+    const t = triggerNode.data?.trigger || triggerNode.data || {};
     let matches = false;
 
-    if (t.type === 'follow' && triggerType === 'follow') matches = true;
+    if (t.type === 'any') matches = true;
+    else if (t.type === 'follow' && triggerType === 'follow') matches = true;
     else if (t.type === 'unfollow' && triggerType === 'unfollow') matches = true;
     else if (t.type === 'postback' && triggerType === 'postback' && t.postbackPayload === postbackPayload) matches = true;
     else if (t.type === 'keyword' && triggerType === 'keyword') {
@@ -97,17 +113,11 @@ async function handleLineEvent(event, channel) {
       });
     }
 
+    console.log('[LINE] 流程:', flow.name, '| trigger type:', t.type, '| 關鍵字:', t.keywords, '| 匹配:', matches);
+
     if (matches) {
       await processMessage({ contact, flow, channel, text, postbackPayload });
       break;
-    }
-  }
-
-  // If contact is in mid-flow, continue it
-  if (contact.currentFlowState?.waitingForInput && text) {
-    const flow = await Flow.findById(contact.currentFlowState.flowId);
-    if (flow) {
-      await processMessage({ contact, flow, channel, text, isResuming: true });
     }
   }
 }
@@ -183,16 +193,33 @@ async function handleMessengerEvent(event, channel) {
   const postbackPayload = postback?.payload || '';
   const triggerType = postback ? 'postback' : 'keyword';
 
+  // If contact is in mid-flow waiting for input, resume it first
+  if (contact.currentFlowState?.waitingForInput && text) {
+    const flow = await Flow.findById(contact.currentFlowState.flowId);
+    if (flow) {
+      await processMessage({ contact, flow, channel, text, isResuming: true });
+      return;
+    }
+  }
+
   const flows = await Flow.find({ channel: channel._id, isActive: true });
+  console.log('[Messenger] 活躍流程數量:', flows.length, '| 文字:', text);
+
   for (const flow of flows) {
     const triggerNode = flow.nodes.find(n => n.type === 'trigger');
     if (!triggerNode) continue;
-    const t = triggerNode.data.trigger;
+    const t = triggerNode.data?.trigger || triggerNode.data || {};
     let matches = false;
 
-    if (t.type === 'postback' && triggerType === 'postback' && t.postbackPayload === postbackPayload) matches = true;
+    if (t.type === 'any') matches = true;
+    else if (t.type === 'follow') matches = triggerType === 'keyword'; // Messenger 沒有 follow 事件，忽略
+    else if (t.type === 'postback' && triggerType === 'postback' && t.postbackPayload === postbackPayload) matches = true;
     else if (t.type === 'keyword' && text) {
-      matches = t.keywords?.some(kw => text.toLowerCase().includes(kw.toLowerCase()));
+      matches = t.keywords?.some(kw => {
+        if (t.matchMode === 'exact') return text.toLowerCase() === kw.toLowerCase();
+        if (t.matchMode === 'startsWith') return text.toLowerCase().startsWith(kw.toLowerCase());
+        return text.toLowerCase().includes(kw.toLowerCase());
+      });
     }
 
     if (matches) {

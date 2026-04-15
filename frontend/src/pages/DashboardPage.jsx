@@ -13,45 +13,45 @@ const StatCard = ({ label, value, sub, color = '#6366F1' }) => (
 );
 
 export default function DashboardPage() {
-  const { activeChannelId, channels } = useChannelStore();
+  const { activeChannelId, channels, channelsReady } = useChannelStore();
   const [stats, setStats] = useState(null);
   const activeChannel = channels.find(c => c._id === activeChannelId);
 
   useEffect(() => {
-    if (!activeChannelId) return;
+    if (!channelsReady || !activeChannelId) return;
     api.get(`/analytics/overview?channelId=${activeChannelId}`)
       .then(r => setStats(r.data))
       .catch(() => {});
-  }, [activeChannelId]);
+  }, [channelsReady, activeChannelId]);
 
-  if (!activeChannelId) return (
+  if (!channelsReady || !activeChannelId) return (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: '#94A3B8' }}>
       <span style={{ fontSize: 48 }}>⊞</span>
-      <p style={{ fontSize: 16, margin: 0 }}>Select or create a channel to get started</p>
+      <p style={{ fontSize: 16, margin: 0 }}>請選擇或建立一個頻道以開始使用</p>
     </div>
   );
 
   return (
     <div style={{ padding: 32, maxWidth: 1100 }}>
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#0F172A' }}>Dashboard</h1>
+        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#0F172A' }}>儀表板</h1>
         <p style={{ margin: '4px 0 0', color: '#64748B', fontSize: 14 }}>
           {activeChannel?.platform === 'line' ? '🟢' : '🔵'} {activeChannel?.name}
         </p>
       </div>
 
-      {/* Stat Cards */}
+      {/* 數據卡片 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 32 }}>
-        <StatCard label="Total Contacts" value={stats?.totalContacts ?? '—'} sub="Active followers" color="#6366F1" />
-        <StatCard label="New Today" value={stats?.newContactsToday ?? '—'} sub="New subscribers" color="#10B981" />
-        <StatCard label="Active Flows" value={stats?.activeFlows ?? '—'} sub="Running flows" color="#F59E0B" />
-        <StatCard label="Broadcasts Sent" value={stats?.totalBroadcasts ?? '—'} sub="All time" color="#8B5CF6" />
+        <StatCard label="總聯絡人" value={stats?.totalContacts ?? '—'} sub="目前關注中" color="#6366F1" />
+        <StatCard label="今日新增" value={stats?.newContactsToday ?? '—'} sub="新訂閱者" color="#10B981" />
+        <StatCard label="啟用中流程" value={stats?.activeFlows ?? '—'} sub="運行中流程" color="#F59E0B" />
+        <StatCard label="已發送廣播" value={stats?.totalBroadcasts ?? '—'} sub="累計至今" color="#8B5CF6" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 20 }}>
-        {/* Growth Chart */}
+        {/* 成長趨勢圖 */}
         <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #F1F5F9' }}>
-          <h3 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 600, color: '#0F172A' }}>Subscriber Growth (30 days)</h3>
+          <h3 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 600, color: '#0F172A' }}>訂閱者成長（近 30 天）</h3>
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={stats?.growth || []}>
               <defs>
@@ -64,14 +64,14 @@ export default function DashboardPage() {
                 tickFormatter={v => v?.slice(5)} />
               <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} tickLine={false} axisLine={false} allowDecimals={false} />
               <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.12)', fontSize: 12 }} />
-              <Area type="monotone" dataKey="count" stroke="#6366F1" strokeWidth={2} fill="url(#grad)" name="New subscribers" />
+              <Area type="monotone" dataKey="count" stroke="#6366F1" strokeWidth={2} fill="url(#grad)" name="新訂閱者" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Top Tags */}
+        {/* 熱門標籤 */}
         <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #F1F5F9' }}>
-          <h3 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 600, color: '#0F172A' }}>Top Tags</h3>
+          <h3 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 600, color: '#0F172A' }}>熱門標籤</h3>
           {stats?.topTags?.length
             ? stats.topTags.map((tag, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -87,7 +87,7 @@ export default function DashboardPage() {
                   <span style={{ fontSize: 12, color: '#94A3B8', minWidth: 28, textAlign: 'right' }}>{tag.count}</span>
                 </div>
               ))
-            : <p style={{ color: '#94A3B8', fontSize: 13, margin: 0 }}>No tags yet</p>
+            : <p style={{ color: '#94A3B8', fontSize: 13, margin: 0 }}>尚無標籤</p>
           }
         </div>
       </div>

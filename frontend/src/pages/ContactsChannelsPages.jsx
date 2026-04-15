@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
 export function ContactsPage() {
-  const { activeChannelId } = useChannelStore();
+  const { activeChannelId, channelsReady } = useChannelStore();
   const [contacts, setContacts] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -16,18 +16,18 @@ export function ContactsPage() {
   const [selected, setSelected] = useState(null);
 
   useEffect(() => {
-    if (!activeChannelId) return;
+    if (!channelsReady || !activeChannelId) return;
     api.get(`/contacts/tags/list?channelId=${activeChannelId}`)
       .then(r => setAllTags(r.data.tags)).catch(() => {});
-  }, [activeChannelId]);
+  }, [channelsReady, activeChannelId]);
 
   useEffect(() => {
-    if (!activeChannelId) return;
+    if (!channelsReady || !activeChannelId) return;
     const params = new URLSearchParams({ channelId: activeChannelId, page, limit: 50 });
     if (search) params.append('search', search);
     if (filterTag) params.append('tag', filterTag);
     api.get(`/contacts?${params}`).then(r => { setContacts(r.data.contacts); setTotal(r.data.total); });
-  }, [activeChannelId, page, search, filterTag]);
+  }, [channelsReady, activeChannelId, page, search, filterTag]);
 
   const handleTagAction = async (contactId, type, tag) => {
     try {
@@ -36,35 +36,35 @@ export function ContactsPage() {
       });
       setContacts(cs => cs.map(c => c._id === contactId ? { ...c, tags: data.contact.tags } : c));
       if (selected?._id === contactId) setSelected(data.contact);
-    } catch { toast.error('Failed'); }
+    } catch { toast.error('操作失敗'); }
   };
 
   return (
     <div style={{ padding: 32 }}>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#0F172A' }}>Contacts</h1>
-        <p style={{ margin: '4px 0 0', color: '#64748B', fontSize: 14 }}>{total.toLocaleString()} subscribers</p>
+        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#0F172A' }}>聯絡人</h1>
+        <p style={{ margin: '4px 0 0', color: '#64748B', fontSize: 14 }}>{total.toLocaleString()} 位訂閱者</p>
       </div>
 
-      {/* Filters */}
+      {/* 篩選列 */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
         <input style={{ flex: 1, maxWidth: 280, padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, outline: 'none' }}
-          placeholder="Search by name or ID..."
+          placeholder="搜尋姓名或 ID..."
           value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
         <select style={{ padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, outline: 'none', cursor: 'pointer' }}
           value={filterTag} onChange={e => { setFilterTag(e.target.value); setPage(1); }}>
-          <option value="">All tags</option>
+          <option value="">所有標籤</option>
           {allTags.map(t => <option key={t} value={t}>#{t}</option>)}
         </select>
       </div>
 
       <div style={{ display: 'flex', gap: 20 }}>
-        {/* Table */}
+        {/* 列表 */}
         <div style={{ flex: 1, background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#F8F9FC' }}>
-                {['Contact','Platform','Tags','Last Active'].map(h => (
+                {['聯絡人','平台','標籤','最近互動'].map(h => (
                   <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
                 ))}
               </tr>
@@ -81,7 +81,7 @@ export function ContactsPage() {
                         {c.displayName?.[0]?.toUpperCase() || '?'}
                       </div>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: '#0F172A' }}>{c.displayName || 'Unknown'}</div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: '#0F172A' }}>{c.displayName || '未知'}</div>
                         <div style={{ fontSize: 11, color: '#94A3B8' }}>{c.platformId?.slice(0, 12)}...</div>
                       </div>
                     </div>
@@ -102,7 +102,7 @@ export function ContactsPage() {
                     </div>
                   </td>
                   <td style={{ padding: '10px 14px', fontSize: 12, color: '#64748B' }}>
-                    {c.lastInteractedAt ? format(new Date(c.lastInteractedAt), 'MMM d') : '—'}
+                    {c.lastInteractedAt ? format(new Date(c.lastInteractedAt), 'MM/dd') : '—'}
                   </td>
                 </tr>
               ))}
@@ -110,11 +110,11 @@ export function ContactsPage() {
           </table>
         </div>
 
-        {/* Detail panel */}
+        {/* 詳情面板 */}
         {selected && (
           <div style={{ width: 280, background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', padding: 20, flexShrink: 0, height: 'fit-content' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-              <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A' }}>Contact Details</div>
+              <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A' }}>聯絡人詳情</div>
               <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#94A3B8' }}>×</button>
             </div>
             <div style={{ textAlign: 'center', marginBottom: 16 }}>
@@ -126,22 +126,22 @@ export function ContactsPage() {
             </div>
             <div style={{ fontSize: 12, color: '#374151', marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #F1F5F9' }}>
-                <span style={{ color: '#94A3B8' }}>ID</span>
+                <span style={{ color: '#94A3B8' }}>帳號 ID</span>
                 <span style={{ fontFamily: 'monospace', fontSize: 11 }}>{selected.platformId?.slice(0, 16)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #F1F5F9' }}>
-                <span style={{ color: '#94A3B8' }}>Language</span>
+                <span style={{ color: '#94A3B8' }}>語言</span>
                 <span>{selected.language || '—'}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}>
-                <span style={{ color: '#94A3B8' }}>Following</span>
+                <span style={{ color: '#94A3B8' }}>關注中</span>
                 <span style={{ color: selected.isFollowing ? '#22C55E' : '#F43F5E' }}>
-                  {selected.isFollowing ? 'Yes' : 'No'}
+                  {selected.isFollowing ? '是' : '否'}
                 </span>
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Tags</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>標籤</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
                 {selected.tags?.map(t => (
                   <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#F1F5F9', color: '#475569' }}>
@@ -153,7 +153,7 @@ export function ContactsPage() {
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 <input id="newTagInput" style={{ flex: 1, padding: '5px 8px', borderRadius: 6, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none' }}
-                  placeholder="Add tag..." onKeyDown={e => {
+                  placeholder="新增標籤..." onKeyDown={e => {
                     if (e.key === 'Enter' && e.target.value.trim()) {
                       handleTagAction(selected._id, 'add', e.target.value.trim());
                       e.target.value = '';
@@ -183,10 +183,10 @@ export function ChannelsPage() {
         name: form.name, platform: form.platform,
         credentials: { accessToken: form.accessToken, channelSecret: form.channelSecret },
       });
-      toast.success('Channel created!');
+      toast.success('頻道建立成功！');
       setShowForm(false);
       setForm({ name: '', platform: 'line', accessToken: '', channelSecret: '' });
-    } catch { toast.error('Failed'); }
+    } catch { toast.error('操作失敗'); }
   };
 
   const PLATFORM_INFO = {
@@ -198,24 +198,24 @@ export function ChannelsPage() {
     <div style={{ padding: 32 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#0F172A' }}>Channels</h1>
-          <p style={{ margin: '4px 0 0', color: '#64748B', fontSize: 14 }}>Connect LINE, Messenger, and more</p>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#0F172A' }}>頻道管理</h1>
+          <p style={{ margin: '4px 0 0', color: '#64748B', fontSize: 14 }}>連接 LINE、Messenger 等平台</p>
         </div>
         <button onClick={() => setShowForm(true)}
           style={{ padding: '9px 20px', borderRadius: 8, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
-          + Add Channel
+          + 新增頻道
         </button>
       </div>
 
       {showForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: '#fff', borderRadius: 16, padding: 32, width: 460 }}>
-            <h2 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700 }}>Add Channel</h2>
+            <h2 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700 }}>新增頻道</h2>
             <form onSubmit={handleSubmit}>
               {[
-                { key: 'name', label: 'Channel Name', placeholder: 'My LINE Bot' },
-                { key: 'accessToken', label: 'Channel Access Token', placeholder: 'Long-lived access token' },
-                { key: 'channelSecret', label: 'Channel Secret', placeholder: 'Channel secret / App secret' },
+                { key: 'name', label: '頻道名稱', placeholder: '我的 LINE 機器人' },
+                { key: 'accessToken', label: '頻道存取金鑰', placeholder: '長效存取金鑰' },
+                { key: 'channelSecret', label: '頻道密鑰', placeholder: '頻道密鑰 / App 密鑰' },
               ].map(({ key, label, placeholder }) => (
                 <div key={key} style={{ marginBottom: 14 }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>{label}</label>
@@ -225,7 +225,7 @@ export function ChannelsPage() {
                 </div>
               ))}
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>Platform</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>平台</label>
                 <select style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, boxSizing: 'border-box', outline: 'none' }}
                   value={form.platform} onChange={e => setForm(f => ({ ...f, platform: e.target.value }))}>
                   <option value="line">LINE</option>
@@ -234,9 +234,9 @@ export function ChannelsPage() {
               </div>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                 <button type="button" onClick={() => setShowForm(false)}
-                  style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #E2E8F0', background: 'none', cursor: 'pointer', fontSize: 13 }}>Cancel</button>
+                  style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #E2E8F0', background: 'none', cursor: 'pointer', fontSize: 13 }}>取消</button>
                 <button type="submit"
-                  style={{ padding: '8px 18px', borderRadius: 8, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Create</button>
+                  style={{ padding: '8px 18px', borderRadius: 8, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>建立</button>
               </div>
             </form>
           </div>
@@ -257,7 +257,7 @@ export function ChannelsPage() {
                   <div style={{ fontSize: 12, color: '#94A3B8' }}>{pi.label}</div>
                 </div>
                 <span style={{ marginLeft: 'auto', fontSize: 11, padding: '3px 8px', borderRadius: 20, background: ch.isActive ? '#F0FDF4' : '#F1F5F9', color: ch.isActive ? '#15803D' : '#94A3B8', fontWeight: 500 }}>
-                  {ch.isActive ? 'Active' : 'Inactive'}
+                  {ch.isActive ? '啟用中' : '未啟用'}
                 </span>
               </div>
 
@@ -267,10 +267,10 @@ export function ChannelsPage() {
 
               <div style={{ display: 'flex', gap: 8 }}>
                 <a href={pi.docs} target="_blank" rel="noopener noreferrer"
-                  style={{ fontSize: 12, color: '#6366F1', textDecoration: 'none' }}>Docs ↗</a>
-                <button onClick={() => { if (window.confirm('Delete channel?')) deleteChannel(ch._id); }}
+                  style={{ fontSize: 12, color: '#6366F1', textDecoration: 'none' }}>文件 ↗</a>
+                <button onClick={() => { if (window.confirm('確定刪除此頻道？')) deleteChannel(ch._id); }}
                   style={{ marginLeft: 'auto', padding: '4px 10px', borderRadius: 6, border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', fontSize: 11 }}>
-                  Delete
+                  刪除
                 </button>
               </div>
             </div>

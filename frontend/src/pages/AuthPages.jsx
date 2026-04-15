@@ -21,7 +21,7 @@ export function LoginPage() {
       await login(form.email, form.password);
       navigate('/dashboard');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Login failed');
+      toast.error(err.response?.data?.error || '登入失敗');
     }
   };
 
@@ -30,17 +30,17 @@ export function LoginPage() {
       <div style={{ width: 400, background: '#fff', borderRadius: 16, padding: 40, boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ width: 48, height: 48, borderRadius: 12, background: 'linear-gradient(135deg,#6366F1,#8B5CF6)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 24, fontWeight: 700, marginBottom: 12 }}>B</div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#0F172A' }}>Welcome back</h1>
-          <p style={{ margin: '6px 0 0', color: '#64748B', fontSize: 14 }}>Sign in to BotFlow</p>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#0F172A' }}>歡迎回來</h1>
+          <p style={{ margin: '6px 0 0', color: '#64748B', fontSize: 14 }}>登入 BotFlow</p>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Email</label>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>電子信箱</label>
             <input type="email" style={inputStyle} value={form.email}
               onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="you@example.com" required />
           </div>
           <div style={{ marginBottom: 24 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Password</label>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>密碼</label>
             <input type="password" style={inputStyle} value={form.password}
               onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="••••••••" required />
           </div>
@@ -49,11 +49,11 @@ export function LoginPage() {
             background: 'linear-gradient(135deg,#6366F1,#8B5CF6)', color: '#fff',
             border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer',
           }}>
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? '登入中...' : '登入'}
           </button>
         </form>
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#64748B' }}>
-          Don't have an account? <Link to="/register" style={{ color: '#6366F1', fontWeight: 500 }}>Register</Link>
+          還沒有帳號？ <Link to="/register" style={{ color: '#6366F1', fontWeight: 500 }}>立即註冊</Link>
         </p>
       </div>
     </div>
@@ -71,29 +71,32 @@ export function RegisterPage() {
       await register(form.name, form.email, form.password);
       navigate('/dashboard');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Registration failed');
+      toast.error(err.response?.data?.error || '註冊失敗');
     }
   };
+
+  const fieldLabels = { name: '姓名', email: '電子信箱', password: '密碼' };
+  const fieldPlaceholders = { name: '您的姓名', email: 'you@example.com', password: '••••••••' };
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8F9FC' }}>
       <div style={{ width: 400, background: '#fff', borderRadius: 16, padding: 40, boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ width: 48, height: 48, borderRadius: 12, background: 'linear-gradient(135deg,#6366F1,#8B5CF6)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 24, fontWeight: 700, marginBottom: 12 }}>B</div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#0F172A' }}>Create account</h1>
-          <p style={{ margin: '6px 0 0', color: '#64748B', fontSize: 14 }}>Start building chatbots for free</p>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#0F172A' }}>建立帳號</h1>
+          <p style={{ margin: '6px 0 0', color: '#64748B', fontSize: 14 }}>免費開始建立聊天機器人</p>
         </div>
         <form onSubmit={handleSubmit}>
           {['name','email','password'].map(field => (
             <div key={field} style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
-                {field.charAt(0).toUpperCase() + field.slice(1)}
+                {fieldLabels[field]}
               </label>
               <input
                 type={field === 'password' ? 'password' : field === 'email' ? 'email' : 'text'}
                 style={inputStyle} value={form[field]}
                 onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
-                placeholder={field === 'email' ? 'you@example.com' : field === 'password' ? '••••••••' : 'Your name'}
+                placeholder={fieldPlaceholders[field]}
                 required
               />
             </div>
@@ -103,11 +106,11 @@ export function RegisterPage() {
             background: 'linear-gradient(135deg,#6366F1,#8B5CF6)', color: '#fff',
             border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer', marginTop: 8,
           }}>
-            {loading ? 'Creating...' : 'Create Account'}
+            {loading ? '建立中...' : '建立帳號'}
           </button>
         </form>
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#64748B' }}>
-          Already have an account? <Link to="/login" style={{ color: '#6366F1', fontWeight: 500 }}>Sign in</Link>
+          已有帳號？ <Link to="/login" style={{ color: '#6366F1', fontWeight: 500 }}>立即登入</Link>
         </p>
       </div>
     </div>
