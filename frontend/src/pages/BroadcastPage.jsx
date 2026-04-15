@@ -92,9 +92,14 @@ export default function BroadcastPage() {
   };
 
   const handleDelete = async (id) => {
-    await api.delete(`/broadcasts/${id}`);
-    setBroadcasts(b => b.filter(x => x._id !== id));
-    toast.success('已刪除');
+    if (!window.confirm('確定刪除此廣播？')) return;
+    try {
+      await api.delete(`/broadcasts/${id}`);
+      setBroadcasts(b => b.filter(x => x._id !== id));
+      toast.success('廣播已刪除');
+    } catch (err) {
+      toast.error(err.response?.data?.error || '刪除失敗');
+    }
   };
 
   const openEdit = (b) => {
@@ -291,7 +296,7 @@ export default function BroadcastPage() {
                     取消
                   </button>
                 )}
-                {b.status === 'draft' && (
+                {b.status !== 'sending' && (
                   <button onClick={() => handleDelete(b._id)}
                     style={{ padding: '6px 14px', borderRadius: 7, background: 'none', border: '1px solid #FCA5A5', color: '#DC2626', cursor: 'pointer', fontSize: 12 }}>
                     刪除

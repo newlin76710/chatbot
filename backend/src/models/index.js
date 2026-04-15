@@ -132,7 +132,7 @@ const nodeSchema = new mongoose.Schema({
     }],
     // For trigger nodes
     trigger: {
-      type: { type: String, enum: ['keyword', 'follow', 'unfollow', 'postback', 'referral', 'schedule', 'apiTrigger'] },
+      type: { type: String, enum: ['any', 'keyword', 'follow', 'unfollow', 'postback', 'referral', 'schedule', 'apiTrigger'] },
       keywords: [String],
       matchMode: { type: String, enum: ['exact', 'contains', 'startsWith'], default: 'contains' },
       postbackPayload: String,

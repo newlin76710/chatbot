@@ -83,6 +83,9 @@ router.post('/:id/send', auth, async (req, res) => {
     }).populate('channel');
     if (!broadcast) return res.status(404).json({ error: '找不到此廣播' });
 
+    // 在 save() 前先保留 channel 物件（save 後可能被 depopulate）
+    const channel = broadcast.channel;
+
     broadcast.status = 'sending';
     await broadcast.save();
 
@@ -91,11 +94,13 @@ router.post('/:id/send', auth, async (req, res) => {
     broadcast.stats.total = contacts.length;
     await broadcast.save();
 
-    // Enqueue sending (async, non-blocking)
+    // 等待發送完成後再回應，確保 stats 已更新
     const { sendBroadcastNow } = require('../services/broadcastService');
-    sendBroadcastNow(broadcast, contacts).catch(console.error);
+    await sendBroadcastNow(broadcast, contacts, channel);
 
-    res.json({ broadcast, audienceCount: contacts.length });
+    // 重新讀取最新 stats 回傳給前端
+    const updated = await Broadcast.findById(broadcast._id);
+    res.json({ broadcast: updated, audienceCount: contacts.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -119,7 +124,12 @@ router.post('/:id/cancel', auth, async (req, res) => {
 // DELETE /api/broadcasts/:id
 router.delete('/:id', auth, async (req, res) => {
   try {
-    await Broadcast.findOneAndDelete({ _id: req.params.id, ownedBy: req.user._id, status: 'draft' });
+    const deleted = await Broadcast.findOneAndDelete({
+      _id: req.params.id,
+      ownedBy: req.user._id,
+      status: { $ne: 'sending' },
+    });
+    if (!deleted) return res.status(404).json({ error: '找不到此廣播或發送中無法刪除' });
     res.json({ message: '廣播已刪除' });
   } catch (err) {
     res.status(500).json({ error: err.message });

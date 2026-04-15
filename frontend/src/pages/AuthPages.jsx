@@ -31,7 +31,7 @@ export function LoginPage() {
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ width: 48, height: 48, borderRadius: 12, background: 'linear-gradient(135deg,#6366F1,#8B5CF6)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 24, fontWeight: 700, marginBottom: 12 }}>B</div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#0F172A' }}>歡迎回來</h1>
-          <p style={{ margin: '6px 0 0', color: '#64748B', fontSize: 14 }}>登入 BotFlow</p>
+          <p style={{ margin: '6px 0 0', color: '#64748B', fontSize: 14 }}>登入 BotDog</p>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 16 }}>

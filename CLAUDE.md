@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-BotFlow is a full-stack chatbot management platform with a visual flow builder, multi-channel messaging (LINE, Facebook Messenger), contact management, audience segmentation, and broadcast messaging.
+BotDog is a full-stack chatbot management platform with a visual flow builder, multi-channel messaging (LINE, Facebook Messenger), contact management, audience segmentation, and broadcast messaging.
 
 ## Development Commands
 

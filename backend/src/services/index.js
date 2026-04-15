@@ -182,12 +182,23 @@ function convertToMessengerFormat(msg) {
 // ============================================================
 const { Broadcast, Contact } = require('../models');
 
-async function sendBroadcastNow(broadcast, contacts) {
-  const { channel } = broadcast;
+async function sendBroadcastNow(broadcast, contacts, channelArg) {
+  // 優先使用明確傳入的 channel，其次才從 broadcast 取（可能已 depopulate）
+  let channel = channelArg || broadcast.channel;
+  if (!channel?.platform) {
+    const { Channel } = require('../models');
+    const channelId = channel?._id || channel;
+    channel = await Channel.findById(channelId);
+    if (!channel) {
+      console.error('[廣播] 找不到頻道，廣播中止');
+      return;
+    }
+  }
+
   let sent = 0;
   let failed = 0;
 
-  console.log(`[廣播] 開始發送 "${broadcast.name}"，受眾數量: ${contacts.length}`);
+  console.log(`[廣播] 開始發送 "${broadcast.name}"，頻道: ${channel.name}（${channel.platform}），受眾: ${contacts.length} 人`);
 
   const lineIds = contacts.filter(c => c.platform === 'line').map(c => c.platformId);
   const messengerIds = contacts.filter(c => c.platform === 'messenger').map(c => c.platformId);
@@ -230,13 +241,24 @@ async function sendBroadcastNow(broadcast, contacts) {
     }
   }
 
-  await Broadcast.findByIdAndUpdate(broadcast._id, {
-    status: 'sent',
-    sentAt: new Date(),
-    'stats.sent': sent,
-    'stats.failed': failed,
-    'stats.total': contacts.length,
-  });
+  console.log(`[廣播] 更新 stats — sent:${sent} failed:${failed} total:${contacts.length} id:${broadcast._id}`);
+  try {
+    const updated = await Broadcast.findByIdAndUpdate(
+      broadcast._id,
+      { $set: {
+        status: 'sent',
+        sentAt: new Date(),
+        'stats.sent': sent,
+        'stats.delivered': sent,   // LINE/Messenger API 接受即視為送達
+        'stats.failed': failed,
+        'stats.total': contacts.length,
+      }},
+      { new: true }
+    );
+    console.log('[廣播] DB 更新結果:', updated?.stats);
+  } catch (e) {
+    console.error('[廣播] DB 更新失敗:', e.message);
+  }
 }
 
 async function addBroadcastJob(broadcastId, scheduledAt) {

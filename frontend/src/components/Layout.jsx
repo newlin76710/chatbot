@@ -42,7 +42,7 @@ export default function Layout() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: '#fff', fontWeight: 700, fontSize: 16, flexShrink: 0,
           }}>B</div>
-          {!collapsed && <span style={{ color: '#fff', fontWeight: 600, fontSize: 15, whiteSpace: 'nowrap' }}>BotFlow</span>}
+          {!collapsed && <span style={{ color: '#fff', fontWeight: 600, fontSize: 15, whiteSpace: 'nowrap' }}>BotDog</span>}
         </div>
 
         {/* Channel Selector */}
