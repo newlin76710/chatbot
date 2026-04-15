@@ -35,7 +35,7 @@ cp backend/.env.example backend/.env
 # 3. Start everything
 docker-compose up --build
 
-# Frontend → http://localhost:3000
+# Frontend → http://localhost:2202
 # Backend  → http://localhost:4000
 ```
 
@@ -62,7 +62,7 @@ npm run dev                 # Starts on port 4000
 ```bash
 cd frontend
 npm install
-npm start                   # Starts on port 3000
+npm start                   # Starts on port 2202
 ```
 
 ---
@@ -223,7 +223,7 @@ MONGODB_URI=mongodb://localhost:27017/chatbot-platform
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=your-secret-key
 JWT_EXPIRES_IN=7d
-FRONTEND_URL=http://localhost:3000
+FRONTEND_URL=http://localhost:2202
 
 # LINE
 LINE_CHANNEL_ACCESS_TOKEN=

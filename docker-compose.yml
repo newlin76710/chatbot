@@ -36,8 +36,9 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "3000:3000"
+      - "2202:2202"
     environment:
+      - PORT=2202
       - REACT_APP_API_URL=http://backend:4000
     depends_on:
       - backend

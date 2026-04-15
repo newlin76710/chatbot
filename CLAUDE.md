@@ -22,7 +22,7 @@ npm install
 npm run dev        # Development with nodemon
 npm start          # Production
 
-# Frontend (port 3000, proxies /api/* to localhost:4000)
+# Frontend (port 2202, proxies /api/* to localhost:4000)
 cd frontend
 npm install
 npm start          # Development server
