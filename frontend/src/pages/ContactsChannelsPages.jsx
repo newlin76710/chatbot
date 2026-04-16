@@ -5,6 +5,8 @@ import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
+const inputSt = { width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none', boxSizing: 'border-box' };
+
 export function ContactsPage() {
   const { activeChannelId, channelsReady } = useChannelStore();
   const [contacts, setContacts] = useState([]);
@@ -16,13 +18,23 @@ export function ContactsPage() {
   const [selected, setSelected] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
+  // 收集資料編輯狀態
+  const [editingFields, setEditingFields] = useState(false);
+  const [fieldDraft, setFieldDraft] = useState({}); // { key: value }
+  const [newFieldKey, setNewFieldKey] = useState('');
+  const [newFieldVal, setNewFieldVal] = useState('');
+  const [savingFields, setSavingFields] = useState(false);
+
   const selectContact = async (c) => {
+    setEditingFields(false);
     setLoadingDetail(true);
     try {
       const { data } = await api.get(`/contacts/${c._id}`);
       setSelected(data.contact);
+      setFieldDraft(data.contact.customFields || {});
     } catch {
       setSelected(c);
+      setFieldDraft(c.customFields || {});
     } finally {
       setLoadingDetail(false);
     }
@@ -48,8 +60,34 @@ export function ContactsPage() {
         [type === 'add' ? 'add' : 'remove']: [tag]
       });
       setContacts(cs => cs.map(c => c._id === contactId ? { ...c, tags: data.contact.tags } : c));
-      if (selected?._id === contactId) setSelected(data.contact);
+      if (selected?._id === contactId) setSelected(prev => ({ ...prev, tags: data.contact.tags }));
     } catch { toast.error('操作失敗'); }
+  };
+
+  const handleSaveFields = async () => {
+    setSavingFields(true);
+    try {
+      // 若有新欄位待加入
+      const allFields = { ...fieldDraft };
+      if (newFieldKey.trim()) allFields[newFieldKey.trim()] = newFieldVal;
+
+      const { data } = await api.patch(`/contacts/${selected._id}/fields`, { fields: allFields });
+      setSelected(prev => ({ ...prev, customFields: data.customFields }));
+      setFieldDraft(data.customFields);
+      setNewFieldKey('');
+      setNewFieldVal('');
+      setEditingFields(false);
+      toast.success('已儲存');
+    } catch { toast.error('儲存失敗'); }
+    finally { setSavingFields(false); }
+  };
+
+  const handleDeleteField = (key) => {
+    setFieldDraft(prev => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   };
 
   return (
@@ -93,9 +131,9 @@ export function ContactsPage() {
                         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#6366F1' }}>
                         {c.displayName?.[0]?.toUpperCase() || '?'}
                       </div>
-                      <div>
+                      <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 500, color: '#0F172A' }}>{c.displayName || '未知'}</div>
-                        <div style={{ fontSize: 11, color: '#94A3B8' }}>{c.platformId?.slice(0, 12)}...</div>
+                        <div style={{ fontSize: 10, color: '#94A3B8', wordBreak: 'break-all' }}>{c.platformId}</div>
                       </div>
                     </div>
                   </td>
@@ -125,13 +163,15 @@ export function ContactsPage() {
 
         {/* 詳情面板 */}
         {selected && (
-          <div style={{ width: 280, background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', padding: 20, flexShrink: 0, height: 'fit-content' }}>
+          <div style={{ width: 300, background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', padding: 20, flexShrink: 0, maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A' }}>
                 聯絡人詳情{loadingDetail && <span style={{ fontSize: 11, color: '#94A3B8', marginLeft: 6 }}>載入中…</span>}
               </div>
               <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#94A3B8' }}>×</button>
             </div>
+
+            {/* 基本資料 */}
             <div style={{ textAlign: 'center', marginBottom: 16 }}>
               <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#EEF2FF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: '#6366F1', marginBottom: 8 }}>
                 {selected.displayName?.[0]?.toUpperCase() || '?'}
@@ -139,10 +179,10 @@ export function ContactsPage() {
               <div style={{ fontWeight: 600, fontSize: 15, color: '#0F172A' }}>{selected.displayName}</div>
               <div style={{ fontSize: 11, color: '#94A3B8' }}>{selected.platform}</div>
             </div>
-            <div style={{ fontSize: 12, color: '#374151', marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #F1F5F9' }}>
-                <span style={{ color: '#94A3B8' }}>帳號 ID</span>
-                <span style={{ fontFamily: 'monospace', fontSize: 11 }}>{selected.platformId?.slice(0, 16)}</span>
+            <div style={{ fontSize: 12, color: '#374151', marginBottom: 16 }}>
+              <div style={{ padding: '5px 0', borderBottom: '1px solid #F1F5F9' }}>
+                <div style={{ color: '#94A3B8', marginBottom: 2 }}>帳號 ID</div>
+                <div style={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' }}>{selected.platformId}</div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #F1F5F9' }}>
                 <span style={{ color: '#94A3B8' }}>語言</span>
@@ -155,19 +195,59 @@ export function ContactsPage() {
                 </span>
               </div>
             </div>
-            {/* 收集的欄位資料 */}
-            {selected.customFields && Object.keys(selected.customFields).length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>收集的資料</div>
-                {Object.entries(selected.customFields).map(([key, value]) => (
-                  <div key={key} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #F1F5F9', fontSize: 12 }}>
-                    <span style={{ color: '#64748B' }}>{key}</span>
-                    <span style={{ fontWeight: 500, color: '#0F172A', maxWidth: 140, textAlign: 'right', wordBreak: 'break-word' }}>{String(value ?? '')}</span>
-                  </div>
-                ))}
-              </div>
-            )}
 
+            {/* 收集的資料 */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>收集的資料</div>
+                {!editingFields
+                  ? <button onClick={() => { setEditingFields(true); setFieldDraft(selected.customFields || {}); }}
+                      style={{ fontSize: 11, color: '#6366F1', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>編輯</button>
+                  : <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => setEditingFields(false)}
+                        style={{ fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>取消</button>
+                      <button onClick={handleSaveFields} disabled={savingFields}
+                        style={{ fontSize: 11, color: '#fff', background: '#6366F1', border: 'none', borderRadius: 4, cursor: 'pointer', padding: '2px 8px' }}>
+                        {savingFields ? '儲存中…' : '儲存'}
+                      </button>
+                    </div>
+                }
+              </div>
+
+              {!editingFields ? (
+                /* 顯示模式 */
+                Object.keys(selected.customFields || {}).length > 0
+                  ? Object.entries(selected.customFields).map(([key, value]) => (
+                      <div key={key} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #F1F5F9', fontSize: 12 }}>
+                        <span style={{ color: '#64748B', flexShrink: 0, marginRight: 8 }}>{key}</span>
+                        <span style={{ fontWeight: 500, color: '#0F172A', textAlign: 'right', wordBreak: 'break-word' }}>{String(value ?? '')}</span>
+                      </div>
+                    ))
+                  : <div style={{ fontSize: 12, color: '#CBD5E1', padding: '8px 0' }}>尚無資料</div>
+              ) : (
+                /* 編輯模式 */
+                <div>
+                  {Object.entries(fieldDraft).map(([key, value]) => (
+                    <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
+                      <span style={{ fontSize: 11, color: '#64748B', width: 80, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{key}</span>
+                      <input style={{ ...inputSt, flex: 1 }} value={value ?? ''}
+                        onChange={e => setFieldDraft(prev => ({ ...prev, [key]: e.target.value }))} />
+                      <button onClick={() => handleDeleteField(key)}
+                        style={{ background: 'none', border: 'none', color: '#F43F5E', cursor: 'pointer', fontSize: 14, flexShrink: 0 }}>×</button>
+                    </div>
+                  ))}
+                  {/* 新增欄位 */}
+                  <div style={{ display: 'flex', gap: 4, marginTop: 8, borderTop: '1px dashed #E2E8F0', paddingTop: 8 }}>
+                    <input style={{ ...inputSt, flex: '0 0 80px' }} value={newFieldKey}
+                      onChange={e => setNewFieldKey(e.target.value)} placeholder="欄位名稱" />
+                    <input style={{ ...inputSt, flex: 1 }} value={newFieldVal}
+                      onChange={e => setNewFieldVal(e.target.value)} placeholder="值" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 標籤 */}
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>標籤</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
@@ -179,15 +259,14 @@ export function ContactsPage() {
                   </span>
                 ))}
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <input id="newTagInput" style={{ flex: 1, padding: '5px 8px', borderRadius: 6, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none' }}
-                  placeholder="新增標籤..." onKeyDown={e => {
-                    if (e.key === 'Enter' && e.target.value.trim()) {
-                      handleTagAction(selected._id, 'add', e.target.value.trim());
-                      e.target.value = '';
-                    }
-                  }} />
-              </div>
+              <input style={{ width: '100%', padding: '5px 8px', borderRadius: 6, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
+                placeholder="輸入標籤後按 Enter 新增..."
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && e.target.value.trim()) {
+                    handleTagAction(selected._id, 'add', e.target.value.trim());
+                    e.target.value = '';
+                  }
+                }} />
             </div>
           </div>
         )}

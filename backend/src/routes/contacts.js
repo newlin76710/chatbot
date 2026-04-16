@@ -69,7 +69,14 @@ router.get('/:id', auth, async (req, res) => {
     const contact = await Contact.findById(req.params.id)
       .populate('segments', 'name color');
     if (!contact) return res.status(404).json({ error: '找不到此聯絡人' });
-    res.json({ contact });
+    // 將 Mongoose Map 明確轉為純物件，避免前端收到空 {}
+    const obj = contact.toObject();
+    if (obj.customFields instanceof Map) {
+      obj.customFields = Object.fromEntries(obj.customFields);
+    } else if (obj.customFields && !(obj.customFields.constructor === Object)) {
+      obj.customFields = Object.fromEntries(Object.entries(obj.customFields));
+    }
+    res.json({ contact: obj });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
