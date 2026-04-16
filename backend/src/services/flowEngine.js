@@ -19,6 +19,10 @@ async function processMessage({ contact, flow, channel, text, postbackPayload, i
       if (contact.currentFlowState.inputField && text) {
         contact.currentFlowState.variables = contact.currentFlowState.variables || new Map();
         contact.currentFlowState.variables.set(contact.currentFlowState.inputField, text);
+        // 永久儲存到 customFields，讓聯絡人資料保留每筆收集的欄位
+        if (!contact.customFields) contact.customFields = new Map();
+        contact.customFields.set(contact.currentFlowState.inputField, text);
+        contact.markModified('customFields');
       }
       contact.currentFlowState.waitingForInput = false;
 
@@ -267,7 +271,7 @@ async function executeDelayNode(node, context) {
 function renderTemplate(msg, context) {
   // Convert Mongoose Document to plain object to ensure all fields (including quickReplies) are preserved
   const m = msg.toObject ? msg.toObject() : { ...msg };
-  if (m.type === 'text' && m.text) {
+  if (m.text) {
     return { ...m, text: renderTemplateString(m.text, context) };
   }
   return m;
@@ -278,8 +282,13 @@ function renderTemplateString(str, context) {
   return str
     .replace(/\{\{contact\.name\}\}/g, context.contact.displayName || '')
     .replace(/\{\{contact\.platform\}\}/g, context.contact.platform || '')
-    .replace(/\{\{var\.(\w+)\}\}/g, (_, k) => context.variables?.get(k) || '')
-    .replace(/\{\{customField\.(\w+)\}\}/g, (_, k) => context.contact.customFields?.get(k) || '');
+    .replace(/\{\{var\.(\w+)\}\}/g, (_, k) => {
+      // 先查 flow 執行期間的暫時變數，若無則 fallback 到永久儲存的 customFields
+      const fromVars = context.variables?.get(k);
+      const fromCustom = context.contact.customFields?.get(k);
+      return fromVars ?? fromCustom ?? '';
+    })
+    .replace(/\{\{customField\.(\w+)\}\}/g, (_, k) => context.contact.customFields?.get(k) ?? '');
 }
 
 function resolveValue(value, context) {

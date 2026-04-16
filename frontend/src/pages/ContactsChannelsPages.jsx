@@ -140,6 +140,19 @@ export function ContactsPage() {
                 </span>
               </div>
             </div>
+            {/* 收集的欄位資料 */}
+            {selected.customFields && Object.keys(selected.customFields).length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>收集的資料</div>
+                {Object.entries(selected.customFields).map(([key, value]) => (
+                  <div key={key} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #F1F5F9', fontSize: 12 }}>
+                    <span style={{ color: '#64748B' }}>{key}</span>
+                    <span style={{ fontWeight: 500, color: '#0F172A', maxWidth: 140, textAlign: 'right', wordBreak: 'break-word' }}>{String(value ?? '')}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>標籤</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
