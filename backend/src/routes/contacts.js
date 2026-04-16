@@ -56,6 +56,29 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
+// PATCH /api/contacts/:id/fields — 手動設定 customFields（測試 / 管理用）
+router.patch('/:id/fields', auth, async (req, res) => {
+  try {
+    const { fields } = req.body; // { maritalStatus: '單身', city: '台北' }
+    if (!fields || typeof fields !== 'object') {
+      return res.status(400).json({ error: 'fields 必須是物件' });
+    }
+    const setOps = {};
+    for (const [k, v] of Object.entries(fields)) {
+      setOps[`customFields.${k}`] = v;
+    }
+    const contact = await Contact.findByIdAndUpdate(
+      req.params.id,
+      { $set: setOps },
+      { new: true }
+    );
+    if (!contact) return res.status(404).json({ error: '找不到此聯絡人' });
+    res.json({ contact, customFields: Object.fromEntries(contact.customFields || []) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // PATCH /api/contacts/:id/tags
 router.patch('/:id/tags', auth, async (req, res) => {
   try {
