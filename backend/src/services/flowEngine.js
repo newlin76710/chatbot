@@ -23,6 +23,7 @@ async function processMessage({ contact, flow, channel, text, postbackPayload, i
           { _id: contact._id },
           { $set: { [`customFields.${field}`]: text } }
         );
+        console.log(`[FlowEngine] 已寫入 customFields.${field} = "${text}" for contact ${contact._id}`);
         // 同步更新記憶體中的值，供本次執行後續節點使用
         if (!contact.customFields) contact.customFields = new Map();
         contact.customFields.set(field, text);
@@ -59,6 +60,7 @@ async function processMessage({ contact, flow, channel, text, postbackPayload, i
     if (contact.customFields) {
       contact.customFields.forEach((v, k) => { customFieldsPlain[k] = v; });
     }
+    console.log(`[FlowEngine] customFieldsPlain 內容:`, JSON.stringify(customFieldsPlain));
 
     const context = {
       contact,
