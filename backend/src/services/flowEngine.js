@@ -27,6 +27,8 @@ async function processMessage({ contact, flow, channel, text, postbackPayload, i
         // 同步更新記憶體中的值，供本次執行後續節點使用
         if (!contact.customFields) contact.customFields = new Map();
         contact.customFields.set(field, text);
+      } else if (!field) {
+        console.warn(`[FlowEngine] ⚠️ input 節點缺少 inputField 設定，回覆未儲存！nodeId: ${inputNodeId}`);
       }
       contact.currentFlowState.waitingForInput = false;
 
