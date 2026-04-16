@@ -56,10 +56,10 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// PATCH /api/contacts/:id/fields — 手動設定 customFields（測試 / 管理用）
+// PATCH /api/contacts/:id/fields — 手動設定 customFields（支援 MongoDB _id 或 LINE platformId）
 router.patch('/:id/fields', auth, async (req, res) => {
   try {
-    const { fields } = req.body; // { maritalStatus: '單身', city: '台北' }
+    const { fields } = req.body;
     if (!fields || typeof fields !== 'object') {
       return res.status(400).json({ error: 'fields 必須是物件' });
     }
@@ -67,13 +67,18 @@ router.patch('/:id/fields', auth, async (req, res) => {
     for (const [k, v] of Object.entries(fields)) {
       setOps[`customFields.${k}`] = v;
     }
-    const contact = await Contact.findByIdAndUpdate(
-      req.params.id,
+    // 支援 MongoDB ObjectId 或 platformId 兩種查詢方式
+    const isObjectId = /^[a-f\d]{24}$/i.test(req.params.id);
+    const query = isObjectId ? { _id: req.params.id } : { platformId: req.params.id };
+    const contact = await Contact.findOneAndUpdate(
+      query,
       { $set: setOps },
       { new: true }
     );
     if (!contact) return res.status(404).json({ error: '找不到此聯絡人' });
-    res.json({ contact, customFields: Object.fromEntries(contact.customFields || []) });
+    const customFields = {};
+    if (contact.customFields) contact.customFields.forEach((v, k) => { customFields[k] = v; });
+    res.json({ ok: true, customFields });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
