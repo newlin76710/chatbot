@@ -244,9 +244,11 @@ const campaignSchema = new mongoose.Schema({
   description: String,
   channel: { type: mongoose.Schema.Types.ObjectId, ref: 'Channel', required: true },
   ownedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  platform: { type: String, enum: ['line', 'messenger'], default: 'line' },
   code: { type: String, required: true, unique: true },   // 短碼，用於 /c/:code
-  keyword: String,   // 點擊後自動發送的關鍵字
+  keyword: String,   // 點擊後自動發送的關鍵字（LINE & Messenger ref_param）
   lineId: String,    // LINE Bot 的 @ID（例如 @abc1234）
+  messengerPageId: String, // FB 粉專 ID（用於 m.me 連結）
   stats: {
     clicks: { type: Number, default: 0 },
     joins:  { type: Number, default: 0 },

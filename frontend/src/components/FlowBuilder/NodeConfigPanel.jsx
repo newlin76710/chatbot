@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import api from '../../utils/api';
 
 const inputSt = {
   width: '100%', padding: '7px 10px', borderRadius: 7,
@@ -222,20 +223,34 @@ function MessageConfig({ data, save }) {
 
           {/* 圖片 */}
           {msg.type === 'image' && (
-            <input style={inputSt} value={msg.imageUrl || ''}
-              onChange={e => updateMsg(i, 'imageUrl', e.target.value)}
-              placeholder="圖片 URL (https://...)" />
+            <MediaUpload
+              label="圖片"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              url={msg.imageUrl || ''}
+              onUrl={url => updateMsg(i, 'imageUrl', url)}
+              preview="image"
+            />
           )}
 
           {/* 影片 */}
           {msg.type === 'video' && (
             <>
-              <input style={{ ...inputSt, marginBottom: 6 }} value={msg.videoUrl || ''}
-                onChange={e => updateMsg(i, 'videoUrl', e.target.value)}
-                placeholder="影片 URL (https://...)" />
-              <input style={inputSt} value={msg.imageUrl || ''}
-                onChange={e => updateMsg(i, 'imageUrl', e.target.value)}
-                placeholder="預覽圖 URL" />
+              <MediaUpload
+                label="影片（MP4）"
+                accept="video/mp4,video/quicktime"
+                url={msg.videoUrl || ''}
+                onUrl={url => updateMsg(i, 'videoUrl', url)}
+                preview="video"
+              />
+              <div style={{ marginTop: 8 }}>
+                <MediaUpload
+                  label="預覽縮圖（JPEG/PNG）"
+                  accept="image/jpeg,image/png,image/webp"
+                  url={msg.imageUrl || ''}
+                  onUrl={url => updateMsg(i, 'imageUrl', url)}
+                  preview="image"
+                />
+              </div>
             </>
           )}
 
@@ -460,6 +475,75 @@ function ActionConfig({ data, save }) {
         + 新增動作
       </button>
     </>
+  );
+}
+
+// ─── 媒體上傳元件 ─────────────────────────────────────────────
+function MediaUpload({ label, accept, url, onUrl, preview }) {
+  const fileRef = useRef();
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError('');
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const { data } = await api.post('/upload', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      onUrl(data.url);
+    } catch (err) {
+      setError(err.response?.data?.error || '上傳失敗');
+    }
+    setUploading(false);
+    e.target.value = '';
+  };
+
+  return (
+    <div>
+      <div style={subLabelSt}>{label}</div>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+        <input
+          style={{ ...inputSt, flex: 1, fontSize: 12 }}
+          value={url}
+          onChange={e => onUrl(e.target.value)}
+          placeholder="貼入 URL 或點右側上傳"
+        />
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          style={{
+            flexShrink: 0, padding: '4px 10px', borderRadius: 6,
+            border: '1px solid #E2E8F0', background: '#F8F9FC',
+            cursor: 'pointer', fontSize: 11, color: '#374151', whiteSpace: 'nowrap',
+          }}
+        >
+          {uploading ? '上傳中…' : '上傳'}
+        </button>
+        <input ref={fileRef} type="file" accept={accept} style={{ display: 'none' }} onChange={handleFile} />
+      </div>
+      {error && <div style={{ fontSize: 11, color: '#DC2626', marginBottom: 4 }}>{error}</div>}
+      {url && preview === 'image' && (
+        <img
+          src={url}
+          alt=""
+          style={{ width: '100%', maxHeight: 140, objectFit: 'cover', borderRadius: 6, border: '1px solid #E2E8F0' }}
+          onError={e => { e.target.style.display = 'none'; }}
+          onLoad={e => { e.target.style.display = 'block'; }}
+        />
+      )}
+      {url && preview === 'video' && (
+        <video
+          src={url}
+          controls
+          style={{ width: '100%', maxHeight: 120, borderRadius: 6, border: '1px solid #E2E8F0' }}
+        />
+      )}
+    </div>
   );
 }
 

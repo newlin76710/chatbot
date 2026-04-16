@@ -17,6 +17,7 @@ const channelRoutes = require('./routes/channels');
 const webhookRoutes = require('./routes/webhooks');
 const analyticsRoutes = require('./routes/analytics');
 const campaignRoutes = require('./routes/campaigns');
+const uploadRoutes = require('./routes/upload');
 
 const { setupSocketHandlers } = require('./services/socketService');
 const { startScheduler } = require('./services/schedulerService');
@@ -57,6 +58,9 @@ app.use('/api/contacts', contactRoutes);
 app.use('/api/channels', channelRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/campaigns', campaignRoutes);
+app.use('/api/upload', uploadRoutes);
+// 提供上傳檔案的靜態存取（LINE/Messenger 需要公開 HTTPS URL）
+app.use('/uploads', require('express').static('/app/uploads'));
 app.use('/webhook', webhookRoutes);
 
 // 導流短連結 /c/:code — 記錄點擊後跳轉 LINE
@@ -71,13 +75,17 @@ app.get('/c/:code', async (req, res) => {
     if (!campaign) return res.status(404).send('連結不存在或已失效');
 
     let target = 'https://line.me/';
-    const lineId = (campaign.lineId || '').replace(/^@/, '');
-    const kw = campaign.keyword ? encodeURIComponent(campaign.keyword) : '';
-
-    if (lineId && kw) {
-      target = `https://line.me/R/ti/p/@${lineId}?oaMessageText=${kw}`;
-    } else if (lineId) {
-      target = `https://line.me/R/ti/p/@${lineId}`;
+    if (campaign.platform === 'messenger') {
+      const pageId = campaign.messengerPageId;
+      if (pageId) {
+        const ref = campaign.keyword ? `?ref=${encodeURIComponent(campaign.keyword)}` : '';
+        target = `https://m.me/${pageId}${ref}`;
+      }
+    } else {
+      const lineId = (campaign.lineId || '').replace(/^@/, '');
+      const kw = campaign.keyword ? encodeURIComponent(campaign.keyword) : '';
+      if (lineId && kw) target = `https://line.me/R/ti/p/@${lineId}?oaMessageText=${kw}`;
+      else if (lineId) target = `https://line.me/R/ti/p/@${lineId}`;
     }
     res.redirect(302, target);
   } catch (err) {
