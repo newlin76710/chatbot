@@ -265,10 +265,12 @@ async function executeDelayNode(node, context) {
 
 // Template helpers
 function renderTemplate(msg, context) {
-  if (msg.type === 'text' && msg.text) {
-    return { ...msg, text: renderTemplateString(msg.text, context) };
+  // Convert Mongoose Document to plain object to ensure all fields (including quickReplies) are preserved
+  const m = msg.toObject ? msg.toObject() : { ...msg };
+  if (m.type === 'text' && m.text) {
+    return { ...m, text: renderTemplateString(m.text, context) };
   }
-  return msg;
+  return m;
 }
 
 function renderTemplateString(str, context) {

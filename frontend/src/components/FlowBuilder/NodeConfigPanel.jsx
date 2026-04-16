@@ -206,9 +206,9 @@ function MessageConfig({ data, save }) {
                 <div style={subLabelSt}>快速回覆按鈕（最多 13 個）</div>
                 {(msg.quickReplies || []).map((qr, qi) => (
                   <div key={qi} style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
-                    <input style={{ ...inputSt, flex: 1, fontSize: 12 }} value={qr.label}
+                    <input style={{ ...inputSt, flex: 1, minWidth: 0, fontSize: 12 }} value={qr.label ?? ''}
                       onChange={e => updateQR(i, qi, 'label', e.target.value)} placeholder="按鈕文字" />
-                    <input style={{ ...inputSt, flex: 1, fontSize: 12 }} value={qr.text}
+                    <input style={{ ...inputSt, flex: 1, minWidth: 0, fontSize: 12 }} value={qr.text ?? ''}
                       onChange={e => updateQR(i, qi, 'text', e.target.value)} placeholder="回傳值" />
                     <button onClick={() => removeQR(i, qi)} style={{ background: 'none', border: 'none', color: '#F43F5E', cursor: 'pointer', flexShrink: 0 }}>×</button>
                   </div>
