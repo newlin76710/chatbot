@@ -14,6 +14,19 @@ export function ContactsPage() {
   const [filterTag, setFilterTag] = useState('');
   const [allTags, setAllTags] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  const selectContact = async (c) => {
+    setLoadingDetail(true);
+    try {
+      const { data } = await api.get(`/contacts/${c._id}`);
+      setSelected(data.contact);
+    } catch {
+      setSelected(c);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
 
   useEffect(() => {
     if (!channelsReady || !activeChannelId) return;
@@ -72,7 +85,7 @@ export function ContactsPage() {
             <tbody>
               {contacts.map((c, i) => (
                 <tr key={c._id}
-                  onClick={() => setSelected(c)}
+                  onClick={() => selectContact(c)}
                   style={{ borderTop: i === 0 ? 'none' : '1px solid #F1F5F9', cursor: 'pointer', background: selected?._id === c._id ? '#F8F9FF' : 'transparent' }}>
                   <td style={{ padding: '10px 14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -114,7 +127,9 @@ export function ContactsPage() {
         {selected && (
           <div style={{ width: 280, background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', padding: 20, flexShrink: 0, height: 'fit-content' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-              <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A' }}>聯絡人詳情</div>
+              <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A' }}>
+                聯絡人詳情{loadingDetail && <span style={{ fontSize: 11, color: '#94A3B8', marginLeft: 6 }}>載入中…</span>}
+              </div>
               <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#94A3B8' }}>×</button>
             </div>
             <div style={{ textAlign: 'center', marginBottom: 16 }}>

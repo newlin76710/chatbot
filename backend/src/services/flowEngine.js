@@ -14,23 +14,25 @@ async function processMessage({ contact, flow, channel, text, postbackPayload, i
     let startNodeId;
 
     if (isResuming && contact.currentFlowState?.waitingForInput) {
-      // 儲存使用者輸入的值
       const inputNodeId = contact.currentFlowState.nodeId;
-      if (contact.currentFlowState.inputField && text) {
-        contact.currentFlowState.variables = contact.currentFlowState.variables || new Map();
-        contact.currentFlowState.variables.set(contact.currentFlowState.inputField, text);
-        // 永久儲存到 customFields，讓聯絡人資料保留每筆收集的欄位
+      const field = contact.currentFlowState.inputField;
+
+      if (field && text) {
+        // 直接寫入 MongoDB，確保資料不依賴 Mongoose Map change-tracking
+        await Contact.updateOne(
+          { _id: contact._id },
+          { $set: { [`customFields.${field}`]: text } }
+        );
+        // 同步更新記憶體中的值，供本次執行後續節點使用
         if (!contact.customFields) contact.customFields = new Map();
-        contact.customFields.set(contact.currentFlowState.inputField, text);
-        contact.markModified('customFields');
+        contact.customFields.set(field, text);
       }
       contact.currentFlowState.waitingForInput = false;
 
-      // 跳過 input 節點，直接從下一個節點繼續
       const nextEdge = flow.edges.find(e =>
         e.source === inputNodeId && (!e.sourceHandle || e.sourceHandle === 'output')
       );
-      if (!nextEdge) return; // 沒有下一節點，結束流程
+      if (!nextEdge) return;
       startNodeId = nextEdge.target;
     } else {
       // Start from trigger's first connected node
@@ -52,13 +54,19 @@ async function processMessage({ contact, flow, channel, text, postbackPayload, i
     // Update stats
     await Flow.updateOne({ _id: flow._id }, { $inc: { 'stats.triggered': 1 } });
 
+    // 從 customFields（Mongoose Map）建立純 JS 物件，讓模板替換不依賴 .get()
+    const customFieldsPlain = {};
+    if (contact.customFields) {
+      contact.customFields.forEach((v, k) => { customFieldsPlain[k] = v; });
+    }
+
     const context = {
       contact,
       flow,
       channel,
       text,
       postbackPayload,
-      variables: contact.currentFlowState?.variables || new Map(),
+      customFieldsPlain,
     };
 
     await executeNode(startNodeId, context);
@@ -108,7 +116,7 @@ async function executeNode(nodeId, context, depth = 0) {
       break;
   }
 
-  // Move to next node via edge（sourceHandle 為 null/undefined/'output' 均視為預設出口）
+  // Move to next node via edge
   const nextEdge = flow.edges.find(e =>
     e.source === nodeId && (!e.sourceHandle || e.sourceHandle === 'output')
   );
@@ -129,11 +137,9 @@ async function executeMessageNode(node, context) {
     } else if (channel.platform === 'messenger') {
       await sendMessengerMessage(channel, contact.platformId, rendered);
     }
-    // Small delay between messages
     if (messages.length > 1) await sleep(500);
   }
 
-  // Track in conversation history
   contact.conversationHistory.push({
     role: 'bot',
     content: messages.map(m => m.text || '[media]').join(' | '),
@@ -155,7 +161,6 @@ async function executeConditionNode(node, context, depth) {
     result = conditions.every(c => evaluateCondition(c, contact, context));
   }
 
-  // true → sourceHandle 'true', false → 'false'
   const handle = result ? 'true' : 'false';
   const nextEdge = flow.edges.find(e => e.source === node.id && e.sourceHandle === handle);
   if (nextEdge) {
@@ -169,9 +174,9 @@ function evaluateCondition(condition, contact, context) {
 
   if (field === 'tags') actual = contact.tags;
   else if (field.startsWith('customField.')) {
-    actual = contact.customFields?.get(field.split('.')[1]);
+    actual = context.customFieldsPlain?.[field.split('.')[1]];
   } else if (field.startsWith('var.')) {
-    actual = context.variables?.get(field.split('.')[1]);
+    actual = context.customFieldsPlain?.[field.split('.')[1]];
   } else {
     actual = contact[field];
   }
@@ -205,16 +210,23 @@ async function executeActionNode(node, context) {
       case 'removeTag':
         contact.tags = contact.tags.filter(t => t !== action.tag);
         break;
-      case 'setField':
+      case 'setField': {
+        const val = resolveValue(action.value, context);
+        // 直接寫入 DB
+        await Contact.updateOne(
+          { _id: contact._id },
+          { $set: { [`customFields.${action.field}`]: val } }
+        );
         if (!contact.customFields) contact.customFields = new Map();
-        contact.customFields.set(action.field, resolveValue(action.value, context));
+        contact.customFields.set(action.field, val);
+        if (context.customFieldsPlain) context.customFieldsPlain[action.field] = val;
         break;
+      }
       case 'unsubscribe':
         contact.isFollowing = false;
         break;
       case 'triggerFlow':
         if (action.flowId) {
-          const { Flow } = require('../models');
           const targetFlow = await Flow.findById(action.flowId);
           if (targetFlow) {
             await processMessage({ contact: context.contact, flow: targetFlow, channel: context.channel, text: '' });
@@ -243,11 +255,9 @@ async function executeActionNode(node, context) {
 
 async function executeInputNode(node, context) {
   const { contact } = context;
-  // Send prompt message if any
   if (node.data.messages?.length) {
     await executeMessageNode(node, context);
   }
-  // Wait for user input
   contact.currentFlowState.waitingForInput = true;
   contact.currentFlowState.inputField = node.data.inputField;
   await contact.save();
@@ -262,14 +272,12 @@ async function executeDelayNode(node, context) {
     hours: delay.value * 3600 * 1000,
     days: delay.value * 86400 * 1000,
   }[delay.unit] || 0;
-  // For short delays, we can wait inline (up to 5s)
   if (ms <= 5000) await sleep(ms);
-  // Longer delays should be handled by a job queue (not implemented here for brevity)
 }
 
 // Template helpers
 function renderTemplate(msg, context) {
-  // Convert Mongoose Document to plain object to ensure all fields (including quickReplies) are preserved
+  // toObject() 確保 quickReplies 等所有欄位都被正確轉換
   const m = msg.toObject ? msg.toObject() : { ...msg };
   if (m.text) {
     return { ...m, text: renderTemplateString(m.text, context) };
@@ -282,13 +290,8 @@ function renderTemplateString(str, context) {
   return str
     .replace(/\{\{contact\.name\}\}/g, context.contact.displayName || '')
     .replace(/\{\{contact\.platform\}\}/g, context.contact.platform || '')
-    .replace(/\{\{var\.(\w+)\}\}/g, (_, k) => {
-      // 先查 flow 執行期間的暫時變數，若無則 fallback 到永久儲存的 customFields
-      const fromVars = context.variables?.get(k);
-      const fromCustom = context.contact.customFields?.get(k);
-      return fromVars ?? fromCustom ?? '';
-    })
-    .replace(/\{\{customField\.(\w+)\}\}/g, (_, k) => context.contact.customFields?.get(k) ?? '');
+    .replace(/\{\{var\.(\w+)\}\}/g, (_, k) => String(context.customFieldsPlain?.[k] ?? ''))
+    .replace(/\{\{customField\.(\w+)\}\}/g, (_, k) => String(context.customFieldsPlain?.[k] ?? ''));
 }
 
 function resolveValue(value, context) {
