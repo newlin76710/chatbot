@@ -38,14 +38,8 @@ services:
     build: ./frontend
     expose:
       - "3000"
-    environment:
-      - PORT=3000
-      - DANGEROUSLY_DISABLE_HOST_CHECK=true
     depends_on:
       - backend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     restart: unless-stopped
 
   nginx:
