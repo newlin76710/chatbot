@@ -70,6 +70,7 @@ const contactSchema = new mongoose.Schema({
     flowId: { type: mongoose.Schema.Types.ObjectId, ref: 'Flow' },
     nodeId: String,
     waitingForInput: Boolean,
+    inputField: String,
     variables: { type: Map, of: mongoose.Schema.Types.Mixed },
   },
 }, { timestamps: true });

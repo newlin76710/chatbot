@@ -259,6 +259,7 @@ async function executeActionNode(node, context) {
 
 async function executeInputNode(node, context) {
   const { contact } = context;
+  console.log(`[FlowEngine] input node "${node.id}" → inputField: "${node.data.inputField}" | data keys: ${Object.keys(node.data || {}).join(', ')}`);
   if (node.data.messages?.length) {
     await executeMessageNode(node, context);
   }
