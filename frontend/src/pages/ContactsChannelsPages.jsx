@@ -7,6 +7,27 @@ import { format } from 'date-fns';
 
 const inputSt = { width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none', boxSizing: 'border-box' };
 
+// 欄位名稱 → 中文標籤對應表（可依需求自行新增）
+const FIELD_LABELS = {
+  maritalStatus: '感情狀態',
+  city: '居住地區',
+  birthYear: '出生年份',
+  education: '學歷',
+  heightWeight: '身高體重',
+  occupation: '職業',
+  phoneNumber: '手機號碼',
+  name: '姓名',
+  email: '電子郵件',
+  gender: '性別',
+  age: '年齡',
+  address: '地址',
+  note: '備註',
+};
+
+function fieldLabel(key) {
+  return FIELD_LABELS[key] || key;
+}
+
 export function ContactsPage() {
   const { activeChannelId, channelsReady } = useChannelStore();
   const [contacts, setContacts] = useState([]);
@@ -163,7 +184,7 @@ export function ContactsPage() {
 
         {/* 詳情面板 */}
         {selected && (
-          <div style={{ width: 300, background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', padding: 20, flexShrink: 0, maxHeight: '85vh', overflowY: 'auto' }}>
+          <div style={{ width: 320, background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', padding: 20, flexShrink: 0, maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A' }}>
                 聯絡人詳情{loadingDetail && <span style={{ fontSize: 11, color: '#94A3B8', marginLeft: 6 }}>載入中…</span>}
@@ -196,10 +217,10 @@ export function ContactsPage() {
               </div>
             </div>
 
-            {/* 收集的資料 */}
+            {/* 問卷收集資料 */}
             <div style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>收集的資料</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>問卷收集資料</div>
                 {!editingFields
                   ? <button onClick={() => { setEditingFields(true); setFieldDraft(selected.customFields || {}); }}
                       style={{ fontSize: 11, color: '#6366F1', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>編輯</button>
@@ -216,32 +237,48 @@ export function ContactsPage() {
 
               {!editingFields ? (
                 /* 顯示模式 */
-                Object.keys(selected.customFields || {}).length > 0
-                  ? Object.entries(selected.customFields).map(([key, value]) => (
-                      <div key={key} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #F1F5F9', fontSize: 12 }}>
-                        <span style={{ color: '#64748B', flexShrink: 0, marginRight: 8 }}>{key}</span>
-                        <span style={{ fontWeight: 500, color: '#0F172A', textAlign: 'right', wordBreak: 'break-word' }}>{String(value ?? '')}</span>
+                Object.keys(selected.customFields || {}).length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {Object.entries(selected.customFields).map(([key, value]) => (
+                      <div key={key} style={{ background: '#F8F9FC', borderRadius: 8, padding: '8px 12px' }}>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
+                          {fieldLabel(key)}
+                          {FIELD_LABELS[key] ? <span style={{ fontWeight: 400, textTransform: 'none', marginLeft: 4, color: '#CBD5E1' }}>({key})</span> : null}
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0F172A', wordBreak: 'break-word' }}>{String(value ?? '—')}</div>
                       </div>
-                    ))
-                  : <div style={{ fontSize: 12, color: '#CBD5E1', padding: '8px 0' }}>尚無資料</div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '18px 0', background: '#F8F9FC', borderRadius: 8 }}>
+                    <div style={{ fontSize: 20, marginBottom: 6 }}>📋</div>
+                    <div style={{ fontSize: 12, color: '#94A3B8' }}>尚未收集到任何資料</div>
+                    <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>流程執行後資料將顯示於此</div>
+                  </div>
+                )
               ) : (
                 /* 編輯模式 */
                 <div>
                   {Object.entries(fieldDraft).map(([key, value]) => (
-                    <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
-                      <span style={{ fontSize: 11, color: '#64748B', width: 80, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{key}</span>
-                      <input style={{ ...inputSt, flex: 1 }} value={value ?? ''}
-                        onChange={e => setFieldDraft(prev => ({ ...prev, [key]: e.target.value }))} />
-                      <button onClick={() => handleDeleteField(key)}
-                        style={{ background: 'none', border: 'none', color: '#F43F5E', cursor: 'pointer', fontSize: 14, flexShrink: 0 }}>×</button>
+                    <div key={key} style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 10, color: '#94A3B8', marginBottom: 2 }}>{fieldLabel(key)}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <input style={{ ...inputSt, flex: 1 }} value={value ?? ''}
+                          onChange={e => setFieldDraft(prev => ({ ...prev, [key]: e.target.value }))} />
+                        <button onClick={() => handleDeleteField(key)}
+                          style={{ background: 'none', border: 'none', color: '#F43F5E', cursor: 'pointer', fontSize: 16, flexShrink: 0, lineHeight: 1 }}>×</button>
+                      </div>
                     </div>
                   ))}
                   {/* 新增欄位 */}
-                  <div style={{ display: 'flex', gap: 4, marginTop: 8, borderTop: '1px dashed #E2E8F0', paddingTop: 8 }}>
-                    <input style={{ ...inputSt, flex: '0 0 80px' }} value={newFieldKey}
-                      onChange={e => setNewFieldKey(e.target.value)} placeholder="欄位名稱" />
-                    <input style={{ ...inputSt, flex: 1 }} value={newFieldVal}
-                      onChange={e => setNewFieldVal(e.target.value)} placeholder="值" />
+                  <div style={{ borderTop: '1px dashed #E2E8F0', paddingTop: 8, marginTop: 4 }}>
+                    <div style={{ fontSize: 11, color: '#94A3B8', marginBottom: 4 }}>新增欄位</div>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <input style={{ ...inputSt, flex: '0 0 90px' }} value={newFieldKey}
+                        onChange={e => setNewFieldKey(e.target.value)} placeholder="欄位名稱" />
+                      <input style={{ ...inputSt, flex: 1 }} value={newFieldVal}
+                        onChange={e => setNewFieldVal(e.target.value)} placeholder="值" />
+                    </div>
                   </div>
                 </div>
               )}
