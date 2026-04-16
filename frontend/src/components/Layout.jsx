@@ -9,6 +9,7 @@ const NAV = [
   { to: '/broadcasts', icon: '⊕', label: '廣播訊息' },
   { to: '/segments', icon: '◈', label: '受眾分群' },
   { to: '/contacts', icon: '◉', label: '聯絡人' },
+  { to: '/campaigns', icon: '🔗', label: '導流工具' },
   { to: '/channels', icon: '⊞', label: '頻道管理' },
 ];
 

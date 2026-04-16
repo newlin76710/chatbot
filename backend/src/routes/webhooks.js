@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
-const { Channel, Contact, Flow } = require('../models');
+const { Channel, Contact, Flow, Campaign } = require('../models');
 const { processMessage } = require('../services/flowEngine');
 
 // ─── LINE Webhook ─────────────────────────────────────────────
@@ -117,6 +117,13 @@ async function handleLineEvent(event, channel) {
 
     if (matches) {
       await processMessage({ contact, flow, channel, text, postbackPayload });
+      // 若關鍵字符合某導流活動，記錄加入數
+      if (triggerType === 'keyword' && text) {
+        Campaign.updateOne(
+          { channel: channel._id, keyword: text },
+          { $inc: { 'stats.joins': 1 } }
+        ).catch(() => {});
+      }
       break;
     }
   }

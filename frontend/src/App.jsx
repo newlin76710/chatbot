@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
-import { LoginPage, RegisterPage, DashboardPage, FlowBuilderPage, BroadcastPage, SegmentsPage, ContactsPage, ChannelsPage } from './pages';
+import { LoginPage, RegisterPage, DashboardPage, FlowBuilderPage, BroadcastPage, SegmentsPage, ContactsPage, ChannelsPage, CampaignsPage } from './pages';
 import Layout from './components/Layout';
 
 function ProtectedRoute({ children }) {
@@ -28,6 +28,7 @@ export default function App() {
           <Route path="segments" element={<SegmentsPage />} />
           <Route path="contacts" element={<ContactsPage />} />
           <Route path="channels" element={<ChannelsPage />} />
+          <Route path="campaigns" element={<CampaignsPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

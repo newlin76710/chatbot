@@ -236,4 +236,23 @@ const broadcastSchema = new mongoose.Schema({
 
 const Broadcast = mongoose.model('Broadcast', broadcastSchema);
 
-module.exports = { User, Channel, Contact, Flow, Segment, Broadcast };
+// ============================================================
+// models/Campaign.js  (導流工具)
+// ============================================================
+const campaignSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  description: String,
+  channel: { type: mongoose.Schema.Types.ObjectId, ref: 'Channel', required: true },
+  ownedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  code: { type: String, required: true, unique: true },   // 短碼，用於 /c/:code
+  keyword: String,   // 點擊後自動發送的關鍵字
+  lineId: String,    // LINE Bot 的 @ID（例如 @abc1234）
+  stats: {
+    clicks: { type: Number, default: 0 },
+    joins:  { type: Number, default: 0 },
+  },
+}, { timestamps: true });
+
+const Campaign = mongoose.model('Campaign', campaignSchema);
+
+module.exports = { User, Channel, Contact, Flow, Segment, Broadcast, Campaign };

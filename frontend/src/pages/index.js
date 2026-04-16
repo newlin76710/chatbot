@@ -6,3 +6,4 @@ export { default as FlowBuilderPage } from './FlowBuilderPage';
 export { default as BroadcastPage } from './BroadcastPage';
 export { default as SegmentsPage } from './SegmentsPage';
 export { ContactsPage as ContactsPage, ChannelsPage as ChannelsPage } from './ContactsChannelsPages';
+export { default as CampaignsPage } from './CampaignsPage';

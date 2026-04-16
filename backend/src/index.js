@@ -16,6 +16,7 @@ const contactRoutes = require('./routes/contacts');
 const channelRoutes = require('./routes/channels');
 const webhookRoutes = require('./routes/webhooks');
 const analyticsRoutes = require('./routes/analytics');
+const campaignRoutes = require('./routes/campaigns');
 
 const { setupSocketHandlers } = require('./services/socketService');
 const { startScheduler } = require('./services/schedulerService');
@@ -55,7 +56,35 @@ app.use('/api/segments', segmentRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/channels', channelRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/campaigns', campaignRoutes);
 app.use('/webhook', webhookRoutes);
+
+// 導流短連結 /c/:code — 記錄點擊後跳轉 LINE
+app.get('/c/:code', async (req, res) => {
+  try {
+    const { Campaign } = require('./models');
+    const campaign = await Campaign.findOneAndUpdate(
+      { code: req.params.code },
+      { $inc: { 'stats.clicks': 1 } },
+      { new: true }
+    );
+    if (!campaign) return res.status(404).send('連結不存在或已失效');
+
+    let target = 'https://line.me/';
+    const lineId = (campaign.lineId || '').replace(/^@/, '');
+    const kw = campaign.keyword ? encodeURIComponent(campaign.keyword) : '';
+
+    if (lineId && kw) {
+      target = `https://line.me/R/ti/p/@${lineId}?oaMessageText=${kw}`;
+    } else if (lineId) {
+      target = `https://line.me/R/ti/p/@${lineId}`;
+    }
+    res.redirect(302, target);
+  } catch (err) {
+    console.error('[導流] redirect error:', err);
+    res.status(500).send('伺服器錯誤');
+  }
+});
 
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
 
