@@ -33,6 +33,25 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+// GET /api/contacts/debug/all — 列出所有聯絡人（debug 用，部署後可刪）
+router.get('/debug/all', auth, async (req, res) => {
+  try {
+    const contacts = await Contact.find({})
+      .select('platformId platform displayName customFields channel')
+      .limit(50);
+    res.json(contacts.map(c => ({
+      _id: c._id,
+      platformId: c.platformId,
+      platform: c.platform,
+      displayName: c.displayName,
+      channel: c.channel,
+      customFields: c.customFields ? Object.fromEntries(c.customFields) : {},
+    })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/contacts/tags/list - get all unique tags in a channel（需在 /:id 之前）
 router.get('/tags/list', auth, async (req, res) => {
   try {
