@@ -40,6 +40,7 @@ export function ContactsPage() {
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   // 收集資料編輯狀態
+  const [activeTab, setActiveTab] = useState('data');
   const [editingFields, setEditingFields] = useState(false);
   const [fieldDraft, setFieldDraft] = useState({}); // { key: value }
   const [newFieldKey, setNewFieldKey] = useState('');
@@ -48,6 +49,7 @@ export function ContactsPage() {
 
   const selectContact = async (c) => {
     setEditingFields(false);
+    setActiveTab('data');
     setLoadingDetail(true);
     try {
       const { data } = await api.get(`/contacts/${c._id}`);
@@ -159,9 +161,9 @@ export function ContactsPage() {
                     </div>
                   </td>
                   <td style={{ padding: '10px 14px' }}>
-                    <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 20,
-                      background: c.platform === 'line' ? '#F0FDF4' : '#EFF6FF',
-                      color: c.platform === 'line' ? '#15803D' : '#1D4ED8', fontWeight: 500 }}>
+                    <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 20, fontWeight: 500,
+                      background: c.platform === 'line' ? '#F0FDF4' : c.platform === 'instagram' ? '#FFF0F5' : '#EFF6FF',
+                      color: c.platform === 'line' ? '#15803D' : c.platform === 'instagram' ? '#E1306C' : '#1D4ED8' }}>
                       {c.platform}
                     </span>
                   </td>
@@ -193,118 +195,165 @@ export function ContactsPage() {
             </div>
 
             {/* 基本資料 */}
-            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <div style={{ textAlign: 'center', marginBottom: 14 }}>
               <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#EEF2FF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: '#6366F1', marginBottom: 8 }}>
                 {selected.displayName?.[0]?.toUpperCase() || '?'}
               </div>
               <div style={{ fontWeight: 600, fontSize: 15, color: '#0F172A' }}>{selected.displayName}</div>
               <div style={{ fontSize: 11, color: '#94A3B8' }}>{selected.platform}</div>
             </div>
-            <div style={{ fontSize: 12, color: '#374151', marginBottom: 16 }}>
-              <div style={{ padding: '5px 0', borderBottom: '1px solid #F1F5F9' }}>
-                <div style={{ color: '#94A3B8', marginBottom: 2 }}>帳號 ID</div>
-                <div style={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' }}>{selected.platformId}</div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #F1F5F9' }}>
-                <span style={{ color: '#94A3B8' }}>語言</span>
-                <span>{selected.language || '—'}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}>
-                <span style={{ color: '#94A3B8' }}>關注中</span>
-                <span style={{ color: selected.isFollowing ? '#22C55E' : '#F43F5E' }}>
-                  {selected.isFollowing ? '是' : '否'}
-                </span>
-              </div>
+
+            {/* 分頁切換 */}
+            <div style={{ display: 'flex', marginBottom: 16, borderRadius: 8, overflow: 'hidden', border: '1px solid #E2E8F0' }}>
+              {[{ key: 'data', label: '資料' }, { key: 'history', label: '對話紀錄' }].map(tab => (
+                <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
+                  flex: 1, padding: '7px 0', fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none',
+                  background: activeTab === tab.key ? '#6366F1' : '#fff',
+                  color: activeTab === tab.key ? '#fff' : '#64748B',
+                }}>{tab.label}</button>
+              ))}
             </div>
-
-            {/* 問卷收集資料 */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>問卷收集資料</div>
-                {!editingFields
-                  ? <button onClick={() => { setEditingFields(true); setFieldDraft(selected.customFields || {}); }}
-                      style={{ fontSize: 11, color: '#6366F1', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>編輯</button>
-                  : <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => setEditingFields(false)}
-                        style={{ fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>取消</button>
-                      <button onClick={handleSaveFields} disabled={savingFields}
-                        style={{ fontSize: 11, color: '#fff', background: '#6366F1', border: 'none', borderRadius: 4, cursor: 'pointer', padding: '2px 8px' }}>
-                        {savingFields ? '儲存中…' : '儲存'}
-                      </button>
-                    </div>
-                }
-              </div>
-
-              {!editingFields ? (
-                /* 顯示模式 */
-                Object.keys(selected.customFields || {}).length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {Object.entries(selected.customFields).map(([key, value]) => (
-                      <div key={key} style={{ background: '#F8F9FC', borderRadius: 8, padding: '8px 12px' }}>
-                        <div style={{ fontSize: 10, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
-                          {fieldLabel(key)}
-                          {FIELD_LABELS[key] ? <span style={{ fontWeight: 400, textTransform: 'none', marginLeft: 4, color: '#CBD5E1' }}>({key})</span> : null}
-                        </div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0F172A', wordBreak: 'break-word' }}>{String(value ?? '—')}</div>
-                      </div>
-                    ))}
+            {/* 資料分頁 */}
+            {activeTab === 'data' && (
+              <>
+                <div style={{ fontSize: 12, color: '#374151', marginBottom: 16 }}>
+                  <div style={{ padding: '5px 0', borderBottom: '1px solid #F1F5F9' }}>
+                    <div style={{ color: '#94A3B8', marginBottom: 2 }}>帳號 ID</div>
+                    <div style={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' }}>{selected.platformId}</div>
                   </div>
-                ) : (
-                  <div style={{ textAlign: 'center', padding: '18px 0', background: '#F8F9FC', borderRadius: 8 }}>
-                    <div style={{ fontSize: 20, marginBottom: 6 }}>📋</div>
-                    <div style={{ fontSize: 12, color: '#94A3B8' }}>尚未收集到任何資料</div>
-                    <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>流程執行後資料將顯示於此</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #F1F5F9' }}>
+                    <span style={{ color: '#94A3B8' }}>語言</span>
+                    <span>{selected.language || '—'}</span>
                   </div>
-                )
-              ) : (
-                /* 編輯模式 */
-                <div>
-                  {Object.entries(fieldDraft).map(([key, value]) => (
-                    <div key={key} style={{ marginBottom: 8 }}>
-                      <div style={{ fontSize: 10, color: '#94A3B8', marginBottom: 2 }}>{fieldLabel(key)}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <input style={{ ...inputSt, flex: 1 }} value={value ?? ''}
-                          onChange={e => setFieldDraft(prev => ({ ...prev, [key]: e.target.value }))} />
-                        <button onClick={() => handleDeleteField(key)}
-                          style={{ background: 'none', border: 'none', color: '#F43F5E', cursor: 'pointer', fontSize: 16, flexShrink: 0, lineHeight: 1 }}>×</button>
-                      </div>
-                    </div>
-                  ))}
-                  {/* 新增欄位 */}
-                  <div style={{ borderTop: '1px dashed #E2E8F0', paddingTop: 8, marginTop: 4 }}>
-                    <div style={{ fontSize: 11, color: '#94A3B8', marginBottom: 4 }}>新增欄位</div>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      <input style={{ ...inputSt, flex: '0 0 90px' }} value={newFieldKey}
-                        onChange={e => setNewFieldKey(e.target.value)} placeholder="欄位名稱" />
-                      <input style={{ ...inputSt, flex: 1 }} value={newFieldVal}
-                        onChange={e => setNewFieldVal(e.target.value)} placeholder="值" />
-                    </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}>
+                    <span style={{ color: '#94A3B8' }}>關注中</span>
+                    <span style={{ color: selected.isFollowing ? '#22C55E' : '#F43F5E' }}>
+                      {selected.isFollowing ? '是' : '否'}
+                    </span>
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* 標籤 */}
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>標籤</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
-                {selected.tags?.map(t => (
-                  <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#F1F5F9', color: '#475569' }}>
-                    #{t}
-                    <button onClick={() => handleTagAction(selected._id, 'remove', t)}
-                      style={{ background: 'none', border: 'none', color: '#F43F5E', cursor: 'pointer', padding: 0, fontSize: 12, lineHeight: 1 }}>×</button>
-                  </span>
-                ))}
+                {/* 問卷收集資料 */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>問卷收集資料</div>
+                    {!editingFields
+                      ? <button onClick={() => { setEditingFields(true); setFieldDraft(selected.customFields || {}); }}
+                          style={{ fontSize: 11, color: '#6366F1', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>編輯</button>
+                      : <div style={{ display: 'flex', gap: 6 }}>
+                          <button onClick={() => setEditingFields(false)}
+                            style={{ fontSize: 11, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>取消</button>
+                          <button onClick={handleSaveFields} disabled={savingFields}
+                            style={{ fontSize: 11, color: '#fff', background: '#6366F1', border: 'none', borderRadius: 4, cursor: 'pointer', padding: '2px 8px' }}>
+                            {savingFields ? '儲存中…' : '儲存'}
+                          </button>
+                        </div>
+                    }
+                  </div>
+
+                  {!editingFields ? (
+                    Object.keys(selected.customFields || {}).length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {Object.entries(selected.customFields).map(([key, value]) => (
+                          <div key={key} style={{ background: '#F8F9FC', borderRadius: 8, padding: '8px 12px' }}>
+                            <div style={{ fontSize: 10, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
+                              {fieldLabel(key)}
+                              {FIELD_LABELS[key] ? <span style={{ fontWeight: 400, textTransform: 'none', marginLeft: 4, color: '#CBD5E1' }}>({key})</span> : null}
+                            </div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: '#0F172A', wordBreak: 'break-word' }}>{String(value ?? '—')}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '18px 0', background: '#F8F9FC', borderRadius: 8 }}>
+                        <div style={{ fontSize: 20, marginBottom: 6 }}>📋</div>
+                        <div style={{ fontSize: 12, color: '#94A3B8' }}>尚未收集到任何資料</div>
+                        <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>流程執行後資料將顯示於此</div>
+                      </div>
+                    )
+                  ) : (
+                    <div>
+                      {Object.entries(fieldDraft).map(([key, value]) => (
+                        <div key={key} style={{ marginBottom: 8 }}>
+                          <div style={{ fontSize: 10, color: '#94A3B8', marginBottom: 2 }}>{fieldLabel(key)}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <input style={{ ...inputSt, flex: 1 }} value={value ?? ''}
+                              onChange={e => setFieldDraft(prev => ({ ...prev, [key]: e.target.value }))} />
+                            <button onClick={() => handleDeleteField(key)}
+                              style={{ background: 'none', border: 'none', color: '#F43F5E', cursor: 'pointer', fontSize: 16, flexShrink: 0, lineHeight: 1 }}>×</button>
+                          </div>
+                        </div>
+                      ))}
+                      <div style={{ borderTop: '1px dashed #E2E8F0', paddingTop: 8, marginTop: 4 }}>
+                        <div style={{ fontSize: 11, color: '#94A3B8', marginBottom: 4 }}>新增欄位</div>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <input style={{ ...inputSt, flex: '0 0 90px' }} value={newFieldKey}
+                            onChange={e => setNewFieldKey(e.target.value)} placeholder="欄位名稱" />
+                          <input style={{ ...inputSt, flex: 1 }} value={newFieldVal}
+                            onChange={e => setNewFieldVal(e.target.value)} placeholder="值" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 標籤 */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>標籤</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+                    {selected.tags?.map(t => (
+                      <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#F1F5F9', color: '#475569' }}>
+                        #{t}
+                        <button onClick={() => handleTagAction(selected._id, 'remove', t)}
+                          style={{ background: 'none', border: 'none', color: '#F43F5E', cursor: 'pointer', padding: 0, fontSize: 12, lineHeight: 1 }}>×</button>
+                      </span>
+                    ))}
+                  </div>
+                  <input style={{ width: '100%', padding: '5px 8px', borderRadius: 6, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
+                    placeholder="輸入標籤後按 Enter 新增..."
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && e.target.value.trim()) {
+                        handleTagAction(selected._id, 'add', e.target.value.trim());
+                        e.target.value = '';
+                      }
+                    }} />
+                </div>
+              </>
+            )}
+
+            {/* 對話紀錄分頁 */}
+            {activeTab === 'history' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {(selected.conversationHistory || []).length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '28px 0' }}>
+                    <div style={{ fontSize: 28, marginBottom: 8 }}>💬</div>
+                    <div style={{ fontSize: 12, color: '#94A3B8' }}>尚無對話紀錄</div>
+                    <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>使用者傳訊後將自動記錄</div>
+                  </div>
+                ) : (
+                  [...(selected.conversationHistory)].reverse().map((msg, i) => (
+                    <div key={i} style={{ display: 'flex', flexDirection: msg.role === 'user' ? 'row' : 'row-reverse', gap: 6, alignItems: 'flex-end' }}>
+                      <div style={{
+                        maxWidth: '78%',
+                        padding: '7px 11px',
+                        borderRadius: msg.role === 'user' ? '14px 14px 14px 3px' : '14px 14px 3px 14px',
+                        background: msg.role === 'user' ? '#F1F5F9' : '#6366F1',
+                        color: msg.role === 'user' ? '#0F172A' : '#fff',
+                        fontSize: 12,
+                        lineHeight: 1.55,
+                        wordBreak: 'break-word',
+                        whiteSpace: 'pre-wrap',
+                      }}>
+                        {msg.content}
+                      </div>
+                      <div style={{ fontSize: 10, color: '#CBD5E1', flexShrink: 0, paddingBottom: 2 }}>
+                        {msg.timestamp ? format(new Date(msg.timestamp), 'MM/dd HH:mm') : ''}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
-              <input style={{ width: '100%', padding: '5px 8px', borderRadius: 6, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
-                placeholder="輸入標籤後按 Enter 新增..."
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && e.target.value.trim()) {
-                    handleTagAction(selected._id, 'add', e.target.value.trim());
-                    e.target.value = '';
-                  }
-                }} />
-            </div>
+            )}
           </div>
         )}
       </div>

@@ -80,6 +80,21 @@ async function handleLineEvent(event, channel) {
     triggerType = 'unfollow';
   }
 
+  // 儲存使用者訊息到對話紀錄
+  if (text || postbackPayload) {
+    await Contact.updateOne(
+      { _id: contact._id },
+      {
+        $push: {
+          conversationHistory: {
+            $each: [{ role: 'user', content: text || `[按鈕] ${postbackPayload}`, messageType: postbackPayload ? 'postback' : 'text', timestamp: new Date() }],
+            $slice: -100,
+          },
+        },
+      }
+    );
+  }
+
   // 優先：若聯絡人在流程中等待輸入，繼續該流程
   if (contact.currentFlowState?.waitingForInput && text) {
     const resumeFlow = await Flow.findById(contact.currentFlowState.flowId);
@@ -200,6 +215,21 @@ async function handleMessengerEvent(event, channel) {
   const postbackPayload = postback?.payload || '';
   const triggerType = postback ? 'postback' : 'keyword';
 
+  // 儲存使用者訊息到對話紀錄
+  if (text || postbackPayload) {
+    await Contact.updateOne(
+      { _id: contact._id },
+      {
+        $push: {
+          conversationHistory: {
+            $each: [{ role: 'user', content: text || `[按鈕] ${postbackPayload}`, messageType: postbackPayload ? 'postback' : 'text', timestamp: new Date() }],
+            $slice: -100,
+          },
+        },
+      }
+    );
+  }
+
   // If contact is in mid-flow waiting for input, resume it first
   if (contact.currentFlowState?.waitingForInput && text) {
     const flow = await Flow.findById(contact.currentFlowState.flowId);
@@ -307,6 +337,21 @@ async function handleInstagramEvent(event, channel) {
   const text = message?.text || '';
   const postbackPayload = postback?.payload || '';
   const triggerType = postback ? 'postback' : 'keyword';
+
+  // 儲存使用者訊息到對話紀錄
+  if (text || postbackPayload) {
+    await Contact.updateOne(
+      { _id: contact._id },
+      {
+        $push: {
+          conversationHistory: {
+            $each: [{ role: 'user', content: text || `[按鈕] ${postbackPayload}`, messageType: postbackPayload ? 'postback' : 'text', timestamp: new Date() }],
+            $slice: -100,
+          },
+        },
+      }
+    );
+  }
 
   // 若聯絡人在流程中等待輸入，繼續該流程
   if (contact.currentFlowState?.waitingForInput && text) {
