@@ -244,34 +244,42 @@ export function ContactsPage() {
         {/* 詳情面板 */}
         {selected && (
           <div style={{ width: 340, background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', flexShrink: 0, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+            {/* 固定頂部：標題 + 頭像 + 分頁切換 */}
+            <div style={{ flexShrink: 0, padding: '16px 20px 0', borderBottom: '1px solid #E2E8F0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A' }}>
+                  聯絡人詳情{loadingDetail && <span style={{ fontSize: 11, color: '#94A3B8', marginLeft: 6 }}>載入中…</span>}
+                </div>
+                <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#94A3B8' }}>×</button>
+              </div>
+
+              {/* 基本資料 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#EEF2FF', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: '#6366F1' }}>
+                  {selected.displayName?.[0]?.toUpperCase() || '?'}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A' }}>{selected.displayName}</div>
+                  <div style={{ fontSize: 11, color: '#94A3B8' }}>{selected.platform}</div>
+                </div>
+              </div>
+
+              {/* 分頁切換 — 置頂固定 */}
+              <div style={{ display: 'flex', gap: 0 }}>
+                {[{ key: 'data', label: '資料' }, { key: 'history', label: '對話紀錄' }].map(tab => (
+                  <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
+                    flex: 1, padding: '8px 0', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    border: 'none', background: 'none',
+                    color: activeTab === tab.key ? '#6366F1' : '#94A3B8',
+                    borderBottom: activeTab === tab.key ? '2px solid #6366F1' : '2px solid transparent',
+                    transition: 'all 0.15s',
+                  }}>{tab.label}</button>
+                ))}
+              </div>
+            </div>
+
             {/* 可捲動主內容 */}
             <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-              <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A' }}>
-                聯絡人詳情{loadingDetail && <span style={{ fontSize: 11, color: '#94A3B8', marginLeft: 6 }}>載入中…</span>}
-              </div>
-              <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#94A3B8' }}>×</button>
-            </div>
-
-            {/* 基本資料 */}
-            <div style={{ textAlign: 'center', marginBottom: 14 }}>
-              <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#EEF2FF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: '#6366F1', marginBottom: 8 }}>
-                {selected.displayName?.[0]?.toUpperCase() || '?'}
-              </div>
-              <div style={{ fontWeight: 600, fontSize: 15, color: '#0F172A' }}>{selected.displayName}</div>
-              <div style={{ fontSize: 11, color: '#94A3B8' }}>{selected.platform}</div>
-            </div>
-
-            {/* 分頁切換 */}
-            <div style={{ display: 'flex', marginBottom: 16, borderRadius: 8, overflow: 'hidden', border: '1px solid #E2E8F0' }}>
-              {[{ key: 'data', label: '資料' }, { key: 'history', label: '對話紀錄' }].map(tab => (
-                <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
-                  flex: 1, padding: '7px 0', fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none',
-                  background: activeTab === tab.key ? '#6366F1' : '#fff',
-                  color: activeTab === tab.key ? '#fff' : '#64748B',
-                }}>{tab.label}</button>
-              ))}
-            </div>
             {/* 資料分頁 */}
             {activeTab === 'data' && (
               <>
