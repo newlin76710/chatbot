@@ -36,6 +36,30 @@ const upload = multer({
 
 const BASE_URL = process.env.FRONTEND_URL || 'https://bot.ek21.com';
 
+// GET /api/upload/list - 列出已上傳檔案
+router.get('/list', auth, (req, res) => {
+  const { type } = req.query; // 'image' | 'video' | 不傳 = 全部
+  try {
+    if (!fs.existsSync(UPLOAD_DIR)) return res.json({ files: [] });
+    const files = fs.readdirSync(UPLOAD_DIR)
+      .filter(f => !f.startsWith('.'))
+      .map(f => {
+        const isVideo = /\.(mp4|mov|avi)$/i.test(f);
+        return {
+          filename: f,
+          url: `${BASE_URL}/uploads/${f}`,
+          type: isVideo ? 'video' : 'image',
+          mtime: fs.statSync(path.join(UPLOAD_DIR, f)).mtimeMs,
+        };
+      })
+      .filter(f => !type || f.type === type)
+      .sort((a, b) => b.mtime - a.mtime); // 最新優先
+    res.json({ files });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/upload
 router.post('/', auth, upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: '未收到檔案' });
