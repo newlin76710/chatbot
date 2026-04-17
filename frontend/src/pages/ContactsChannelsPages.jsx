@@ -42,6 +42,16 @@ export function ContactsPage() {
   // 收集資料編輯狀態
   const [activeTab, setActiveTab] = useState('data');
   const [editingFields, setEditingFields] = useState(false);
+  const [fieldDraft, setFieldDraft] = useState({});
+  const [newFieldKey, setNewFieldKey] = useState('');
+  const [newFieldVal, setNewFieldVal] = useState('');
+  const [savingFields, setSavingFields] = useState(false);
+
+  // 傳訊息 / 觸發腳本
+  const [contactFlows, setContactFlows] = useState([]);
+  const [sendText, setSendText] = useState('');
+  const [selectedFlowId, setSelectedFlowId] = useState('');
+  const [sending, setSending] = useState(false);
 
   const historyBottomRef = useRef(null);
 
@@ -51,10 +61,48 @@ export function ContactsPage() {
       setTimeout(() => historyBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     }
   }, [activeTab, selected?._id]);
-  const [fieldDraft, setFieldDraft] = useState({}); // { key: value }
-  const [newFieldKey, setNewFieldKey] = useState('');
-  const [newFieldVal, setNewFieldVal] = useState('');
-  const [savingFields, setSavingFields] = useState(false);
+
+  // 載入頻道流程供腳本選擇
+  useEffect(() => {
+    if (!activeChannelId) return;
+    api.get(`/flows?channelId=${activeChannelId}`)
+      .then(r => setContactFlows(r.data.flows || []))
+      .catch(() => {});
+  }, [activeChannelId]);
+
+  const handleSendMessage = async () => {
+    if (!sendText.trim() || !selected) return;
+    setSending(true);
+    try {
+      await api.post(`/contacts/${selected._id}/send`, { text: sendText.trim() });
+      // 加到本地對話紀錄
+      setSelected(prev => ({
+        ...prev,
+        conversationHistory: [
+          ...(prev.conversationHistory || []),
+          { role: 'bot', content: sendText.trim(), messageType: 'text', timestamp: new Date().toISOString() },
+        ],
+      }));
+      setSendText('');
+      if (activeTab !== 'history') setActiveTab('history');
+    } catch (err) {
+      toast.error(err.response?.data?.error || '傳送失敗');
+    }
+    setSending(false);
+  };
+
+  const handleTriggerFlow = async () => {
+    if (!selectedFlowId || !selected) return;
+    setSending(true);
+    try {
+      await api.post(`/contacts/${selected._id}/trigger-flow`, { flowId: selectedFlowId });
+      toast.success('腳本已觸發');
+      setSelectedFlowId('');
+    } catch (err) {
+      toast.error(err.response?.data?.error || '觸發失敗');
+    }
+    setSending(false);
+  };
 
   const selectContact = async (c) => {
     setEditingFields(false);
@@ -195,7 +243,9 @@ export function ContactsPage() {
 
         {/* 詳情面板 */}
         {selected && (
-          <div style={{ width: 320, background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', padding: 20, flexShrink: 0, maxHeight: '85vh', overflowY: 'auto' }}>
+          <div style={{ width: 340, background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', flexShrink: 0, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+            {/* 可捲動主內容 */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A' }}>
                 聯絡人詳情{loadingDetail && <span style={{ fontSize: 11, color: '#94A3B8', marginLeft: 6 }}>載入中…</span>}
@@ -366,6 +416,48 @@ export function ContactsPage() {
                 )}
               </div>
             )}
+            </div>{/* 可捲動主內容結束 */}
+
+            {/* 固定底部：傳訊息 + 執行腳本 */}
+            <div style={{ borderTop: '1px solid #E2E8F0', padding: '10px 14px', flexShrink: 0, background: '#FAFBFC', borderRadius: '0 0 12px 12px' }}>
+              {/* 文字訊息列 */}
+              <div style={{ display: 'flex', gap: 6, marginBottom: 7 }}>
+                <input
+                  value={sendText}
+                  onChange={e => setSendText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { handleSendMessage(); e.preventDefault(); } }}
+                  placeholder="輸入訊息後按 Enter 傳送..."
+                  style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none', background: '#fff' }}
+                />
+                <button onClick={handleSendMessage} disabled={sending || !sendText.trim()} style={{
+                  padding: '7px 12px', borderRadius: 8, border: 'none', cursor: sending || !sendText.trim() ? 'not-allowed' : 'pointer',
+                  background: sending || !sendText.trim() ? '#E2E8F0' : '#6366F1', color: '#fff', fontSize: 12, fontWeight: 600, flexShrink: 0,
+                }}>
+                  {sending ? '…' : '發送'}
+                </button>
+              </div>
+              {/* 腳本列 */}
+              <div style={{ display: 'flex', gap: 6 }}>
+                <select value={selectedFlowId} onChange={e => setSelectedFlowId(e.target.value)} style={{
+                  flex: 1, padding: '6px 8px', borderRadius: 7, border: '1px solid #E2E8F0',
+                  fontSize: 11, outline: 'none', color: selectedFlowId ? '#0F172A' : '#94A3B8', background: '#fff',
+                }}>
+                  <option value="">選擇腳本...</option>
+                  {contactFlows.map(f => (
+                    <option key={f._id} value={f._id}>{f.name}</option>
+                  ))}
+                </select>
+                <button onClick={handleTriggerFlow} disabled={sending || !selectedFlowId} style={{
+                  padding: '6px 12px', borderRadius: 7, border: '1px solid', cursor: !selectedFlowId ? 'not-allowed' : 'pointer',
+                  background: selectedFlowId ? '#F0FDF4' : '#F8F9FC',
+                  borderColor: selectedFlowId ? '#A7F3D0' : '#E2E8F0',
+                  color: selectedFlowId ? '#059669' : '#94A3B8',
+                  fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0,
+                }}>
+                  執行腳本
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

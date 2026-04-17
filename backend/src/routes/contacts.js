@@ -2,7 +2,9 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const { Contact, Channel } = require('../models');
+const { Contact, Channel, Flow } = require('../models');
+const { sendLineMessage, sendMessengerMessage } = require('../services');
+const { processMessage } = require('../services/flowEngine');
 
 // GET /api/contacts
 router.get('/', auth, async (req, res) => {
@@ -123,6 +125,67 @@ router.patch('/:id/tags', auth, async (req, res) => {
 
     res.json({ contact });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/contacts/:id/send — 後台直接傳訊息給聯絡人
+router.post('/:id/send', auth, async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text?.trim()) return res.status(400).json({ error: '訊息不可空白' });
+
+    const contact = await Contact.findById(req.params.id).populate('channel');
+    if (!contact) return res.status(404).json({ error: '找不到此聯絡人' });
+
+    const channel = contact.channel;
+    const msg = { type: 'text', text: text.trim() };
+
+    if (channel.platform === 'line') {
+      await sendLineMessage(channel, contact.platformId, msg);
+    } else if (channel.platform === 'messenger' || channel.platform === 'instagram') {
+      await sendMessengerMessage(channel, contact.platformId, msg);
+    } else {
+      return res.status(400).json({ error: `不支援的平台：${channel.platform}` });
+    }
+
+    // 存入對話紀錄
+    await Contact.updateOne(
+      { _id: contact._id },
+      {
+        $push: {
+          conversationHistory: {
+            $each: [{ role: 'bot', content: text.trim(), messageType: 'text', timestamp: new Date() }],
+            $slice: -100,
+          },
+        },
+      }
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[傳訊息]', err.response?.data || err.message);
+    res.status(500).json({ error: err.response?.data?.message || err.message });
+  }
+});
+
+// POST /api/contacts/:id/trigger-flow — 後台觸發腳本給聯絡人
+router.post('/:id/trigger-flow', auth, async (req, res) => {
+  try {
+    const { flowId } = req.body;
+    if (!flowId) return res.status(400).json({ error: '缺少 flowId' });
+
+    const contact = await Contact.findById(req.params.id).populate('channel');
+    if (!contact) return res.status(404).json({ error: '找不到此聯絡人' });
+
+    const flow = await Flow.findOne({ _id: flowId, ownedBy: req.user._id });
+    if (!flow) return res.status(404).json({ error: '找不到此流程' });
+
+    await processMessage({ contact, flow, channel: contact.channel, text: '' });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[觸發腳本]', err.message);
     res.status(500).json({ error: err.message });
   }
 });
