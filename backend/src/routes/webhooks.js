@@ -131,6 +131,12 @@ async function handleLineEvent(event, channel) {
     console.log('[LINE] 流程:', flow.name, '| trigger type:', t.type, '| 關鍵字:', t.keywords, '| 匹配:', matches);
 
     if (matches) {
+      // 標籤限制：若聯絡人已持有排除標籤中的任一個，跳過此觸發器
+      const excludeTags = t.excludeIfHasTags || [];
+      if (excludeTags.length > 0 && contact.tags?.some(tag => excludeTags.includes(tag))) {
+        console.log('[LINE] 標籤限制跳過流程:', flow.name, '| 命中排除標籤:', contact.tags.filter(tag => excludeTags.includes(tag)));
+        continue;
+      }
       await processMessage({ contact, flow, channel, text, postbackPayload });
       // 若關鍵字符合某導流活動，記錄加入數
       if (triggerType === 'keyword' && text) {
@@ -260,6 +266,12 @@ async function handleMessengerEvent(event, channel) {
     }
 
     if (matches) {
+      // 標籤限制：若聯絡人已持有排除標籤中的任一個，跳過此觸發器
+      const excludeTags = t.excludeIfHasTags || [];
+      if (excludeTags.length > 0 && contact.tags?.some(tag => excludeTags.includes(tag))) {
+        console.log('[Messenger] 標籤限制跳過流程:', flow.name);
+        continue;
+      }
       await processMessage({ contact, flow, channel, text, postbackPayload });
       break;
     }
@@ -382,6 +394,12 @@ async function handleInstagramEvent(event, channel) {
     }
 
     if (matches) {
+      // 標籤限制：若聯絡人已持有排除標籤中的任一個，跳過此觸發器
+      const excludeTags = t.excludeIfHasTags || [];
+      if (excludeTags.length > 0 && contact.tags?.some(tag => excludeTags.includes(tag))) {
+        console.log('[Instagram] 標籤限制跳過流程:', flow.name);
+        continue;
+      }
       await processMessage({ contact, flow, channel, text, postbackPayload });
       break;
     }

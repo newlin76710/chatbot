@@ -139,6 +139,18 @@ function TriggerConfig({ data, save }) {
           任何使用者傳來的訊息都會觸發此流程（適合作為預設歡迎流程）
         </div>
       )}
+
+      {/* 標籤排除條件 */}
+      <div style={{ ...sectionSt, marginTop: 4, paddingTop: 14, borderTop: '1px solid #F1F5F9' }}>
+        <label style={labelSt}>已有以下標籤則不觸發</label>
+        <input style={inputSt}
+          value={(t.excludeIfHasTags || []).join(', ')}
+          onChange={e => set('excludeIfHasTags', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+          placeholder="例如：已填問卷, 已完成（以逗號分隔）" />
+        <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4, lineHeight: 1.5 }}>
+          若聯絡人已持有其中任一標籤，此流程將跳過不執行
+        </div>
+      </div>
     </>
   );
 }
