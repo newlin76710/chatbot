@@ -1,0 +1,821 @@
+{
+    "flow": {
+        "stats": {
+            "triggered": 73,
+            "completed": 8,
+            "dropped": 0
+        },
+        "_id": "69dfb1acc3bbba25521bb6b9",
+        "name": "娜米｜配對基本資料問卷",
+        "description": "配對基本資料問卷，收集感情狀態、地區、出生年次、學歷、身高體重、職業、手機號碼（LINE / FB 通用）",
+        "channel": {
+            "_id": "69dfb190c3bbba25521bb693",
+            "name": "練功大師官方",
+            "platform": "line"
+        },
+        "ownedBy": "69df9ed74c50cdac4b0fe02f",
+        "nodes": [
+            {
+                "position": {
+                    "x": 50,
+                    "y": 200
+                },
+                "data": {
+                    "trigger": {
+                        "type": "keyword",
+                        "keywords": [
+                            "填寫問卷",
+                            "開始配對",
+                            "基本資料",
+                            "填問卷",
+                            "開始"
+                        ],
+                        "matchMode": "contains"
+                    },
+                    "label": "觸發器",
+                    "messages": [],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": []
+                },
+                "id": "trigger_1",
+                "type": "trigger"
+            },
+            {
+                "position": {
+                    "x": 280,
+                    "y": 200
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "Q1 感情狀態",
+                    "messages": [
+                        {
+                            "type": "text",
+                            "text": "為了要參加活動和配對，需要關於你的 6 項基本資料喔！👊\n1. 請問你目前的感情狀態是？",
+                            "quickReplies": [
+                                {
+                                    "label": "單身未婚",
+                                    "text": "單身未婚"
+                                },
+                                {
+                                    "label": "已婚",
+                                    "text": "已婚"
+                                },
+                                {
+                                    "label": "交往中",
+                                    "text": "交往中"
+                                },
+                                {
+                                    "label": "離婚無子",
+                                    "text": "離婚無子"
+                                },
+                                {
+                                    "label": "離婚有子",
+                                    "text": "離婚有子"
+                                }
+                            ]
+                        }
+                    ],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": []
+                },
+                "id": "msg_q1",
+                "type": "message"
+            },
+            {
+                "position": {
+                    "x": 280,
+                    "y": 380
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "儲存感情狀態",
+                    "messages": [],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": [],
+                    "inputField": "maritalStatus",
+                    "inputType": "text"
+                },
+                "id": "input_q1",
+                "type": "input"
+            },
+            {
+                "position": {
+                    "x": 280,
+                    "y": 520
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "Q2 地區",
+                    "messages": [
+                        {
+                            "type": "text",
+                            "text": "2. 請選擇你想參加活動的城市",
+                            "quickReplies": [
+                                {
+                                    "label": "台北",
+                                    "text": "台北"
+                                },
+                                {
+                                    "label": "新竹",
+                                    "text": "新竹"
+                                },
+                                {
+                                    "label": "台中",
+                                    "text": "台中"
+                                },
+                                {
+                                    "label": "台南",
+                                    "text": "台南"
+                                },
+                                {
+                                    "label": "高雄",
+                                    "text": "高雄"
+                                }
+                            ]
+                        }
+                    ],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": []
+                },
+                "id": "msg_q2",
+                "type": "message"
+            },
+            {
+                "position": {
+                    "x": 280,
+                    "y": 678.6804920892271
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "儲存地區",
+                    "messages": [],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": [],
+                    "inputField": "city",
+                    "inputType": "text"
+                },
+                "id": "input_q2",
+                "type": "input"
+            },
+            {
+                "position": {
+                    "x": 280,
+                    "y": 820
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "Q3 出生年次",
+                    "messages": [
+                        {
+                            "type": "text",
+                            "text": "3. 你是（民國）幾年次的呢？",
+                            "quickReplies": []
+                        }
+                    ],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": []
+                },
+                "id": "msg_q3",
+                "type": "message"
+            },
+            {
+                "position": {
+                    "x": 280,
+                    "y": 960
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "儲存出生年次",
+                    "messages": [],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": [],
+                    "inputField": "birthYear",
+                    "inputType": "text"
+                },
+                "id": "input_q3",
+                "type": "input"
+            },
+            {
+                "position": {
+                    "x": 280,
+                    "y": 1100
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "Q4 學歷",
+                    "messages": [
+                        {
+                            "type": "text",
+                            "text": "4. 你的最高學歷是？",
+                            "quickReplies": [
+                                {
+                                    "label": "國中",
+                                    "text": "國中"
+                                },
+                                {
+                                    "label": "高中",
+                                    "text": "高中"
+                                },
+                                {
+                                    "label": "大學",
+                                    "text": "大學"
+                                },
+                                {
+                                    "label": "碩士",
+                                    "text": "碩士"
+                                },
+                                {
+                                    "label": "博士",
+                                    "text": "博士"
+                                }
+                            ]
+                        }
+                    ],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": []
+                },
+                "id": "msg_q4",
+                "type": "message"
+            },
+            {
+                "position": {
+                    "x": 280,
+                    "y": 1260
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "儲存學歷",
+                    "messages": [],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": [],
+                    "inputField": "education",
+                    "inputType": "text"
+                },
+                "id": "input_q4",
+                "type": "input"
+            },
+            {
+                "position": {
+                    "x": 280,
+                    "y": 1401.319507910773
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "Q5 身高體重",
+                    "messages": [
+                        {
+                            "type": "text",
+                            "text": "5. 你的身高/體重？(例如：175cm/80kg)",
+                            "quickReplies": []
+                        }
+                    ],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": []
+                },
+                "id": "msg_q5",
+                "type": "message"
+            },
+            {
+                "position": {
+                    "x": 282.63901582154585,
+                    "y": 1540
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "儲存身高體重",
+                    "messages": [],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": [],
+                    "inputField": "heightWeight",
+                    "inputType": "text"
+                },
+                "id": "input_q5",
+                "type": "input"
+            },
+            {
+                "position": {
+                    "x": 280,
+                    "y": 1680
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "Q6 職業",
+                    "messages": [
+                        {
+                            "type": "text",
+                            "text": "6. 你目前的職業？（例如：資訊工程師）",
+                            "quickReplies": []
+                        }
+                    ],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": []
+                },
+                "id": "msg_q6",
+                "type": "message"
+            },
+            {
+                "position": {
+                    "x": 281.148698354997,
+                    "y": 1820
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "儲存職業",
+                    "messages": [],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": [],
+                    "inputField": "occupation",
+                    "inputType": "text"
+                },
+                "id": "input_q6",
+                "type": "input"
+            },
+            {
+                "position": {
+                    "x": 280,
+                    "y": 1980
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "職業分支（自由業／服務業）",
+                    "messages": [],
+                    "conditions": [
+                        {
+                            "field": "var.occupation",
+                            "operator": "contains",
+                            "value": "自由業"
+                        },
+                        {
+                            "field": "var.occupation",
+                            "operator": "contains",
+                            "value": "服務業"
+                        }
+                    ],
+                    "conditionMode": "or",
+                    "actions": []
+                },
+                "id": "cond_job",
+                "type": "condition"
+            },
+            {
+                "position": {
+                    "x": 100,
+                    "y": 2160
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "追問自由業／服務業細節",
+                    "messages": [
+                        {
+                            "type": "text",
+                            "text": "自由業／服務業的範圍有點廣，方便再請問一下工作內容嗎？(例如：直銷/翻譯/餐飲/美髮）",
+                            "quickReplies": []
+                        }
+                    ],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": []
+                },
+                "id": "msg_freelance",
+                "type": "message"
+            },
+            {
+                "position": {
+                    "x": 100,
+                    "y": 2300
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "儲存職業細節",
+                    "messages": [],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": [],
+                    "inputField": "occupationDetail",
+                    "inputType": "text"
+                },
+                "id": "input_jobdetail",
+                "type": "input"
+            },
+            {
+                "position": {
+                    "x": 280,
+                    "y": 2440
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "Q7 手機號碼",
+                    "messages": [
+                        {
+                            "type": "text",
+                            "text": "6. 最後，你的聯絡手機號碼是？",
+                            "quickReplies": []
+                        }
+                    ],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": []
+                },
+                "id": "msg_q7",
+                "type": "message"
+            },
+            {
+                "position": {
+                    "x": 280,
+                    "y": 2580
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "儲存手機號碼",
+                    "messages": [],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": [],
+                    "inputField": "phoneNumber",
+                    "inputType": "text"
+                },
+                "id": "input_q7",
+                "type": "input"
+            },
+            {
+                "position": {
+                    "x": 280,
+                    "y": 2717.7026032900058
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "結束感謝",
+                    "messages": [
+                        {
+                            "type": "text",
+                            "text": "感謝你！請確認以下資訊是否正確：\n感情狀態：{{var.maritalStatus}}\n地區：{{var.city}}\n出生年：{{var.birthYear}}\n學歷：{{var.education}}\n身高體重：{{var.heightWeight}}\n職業：{{var.occupation}}\n手機：{{var.phoneNumber}}",
+                            "quickReplies": [
+                                {
+                                    "label": "資料正確",
+                                    "text": "資料正確"
+                                },
+                                {
+                                    "label": "訊息有錯",
+                                    "text": "訊息有錯"
+                                }
+                            ]
+                        }
+                    ],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": []
+                },
+                "id": "msg_confirm",
+                "type": "message"
+            },
+            {
+                "position": {
+                    "x": 280,
+                    "y": 2880
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "確認回覆",
+                    "messages": [],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": [],
+                    "inputField": "dataConfirm",
+                    "inputType": "text"
+                },
+                "id": "input_confirm",
+                "type": "input"
+            },
+            {
+                "position": {
+                    "x": 280,
+                    "y": 3019
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "資料確認分支",
+                    "messages": [],
+                    "conditions": [
+                        {
+                            "field": "var.dataConfirm",
+                            "operator": "equals",
+                            "value": "資料正確"
+                        }
+                    ],
+                    "conditionMode": "and",
+                    "actions": []
+                },
+                "id": "cond_confirm",
+                "type": "condition"
+            },
+            {
+                "position": {
+                    "x": 100,
+                    "y": 3200
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "標記回答完畢",
+                    "messages": [],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": [
+                        {
+                            "type": "addTag",
+                            "tag": "回答完畢"
+                        }
+                    ]
+                },
+                "id": "action_tag",
+                "type": "action"
+            },
+            {
+                "position": {
+                    "x": 100,
+                    "y": 3360
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "資料正確回覆",
+                    "messages": [
+                        {
+                            "type": "text",
+                            "text": "好的，我們會先幫你進行初步篩選並有專人與你聯繫。若方便請留下你的電話及聯繫時間，感謝 ❤️",
+                            "quickReplies": []
+                        }
+                    ],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": []
+                },
+                "id": "msg_correct",
+                "type": "message"
+            },
+            {
+                "position": {
+                    "x": 460,
+                    "y": 3200
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "訊息有錯回覆",
+                    "messages": [
+                        {
+                            "type": "text",
+                            "text": "再麻煩您回覆正確的資訊喔！例如：姓名錯誤，直接寫下正確姓名即可 ❤️",
+                            "quickReplies": []
+                        }
+                    ],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": []
+                },
+                "id": "msg_wrong",
+                "type": "message"
+            },
+            {
+                "position": {
+                    "x": 280,
+                    "y": 3540
+                },
+                "data": {
+                    "trigger": {
+                        "keywords": [],
+                        "matchMode": "contains"
+                    },
+                    "label": "結束",
+                    "messages": [],
+                    "conditions": [],
+                    "conditionMode": "and",
+                    "actions": []
+                },
+                "id": "end_1",
+                "type": "end"
+            }
+        ],
+        "edges": [
+            {
+                "id": "e1",
+                "source": "trigger_1",
+                "target": "msg_q1"
+            },
+            {
+                "id": "e2",
+                "source": "msg_q1",
+                "target": "input_q1"
+            },
+            {
+                "id": "e3",
+                "source": "input_q1",
+                "target": "msg_q2"
+            },
+            {
+                "id": "e4",
+                "source": "msg_q2",
+                "target": "input_q2"
+            },
+            {
+                "id": "e5",
+                "source": "input_q2",
+                "target": "msg_q3"
+            },
+            {
+                "id": "e6",
+                "source": "msg_q3",
+                "target": "input_q3"
+            },
+            {
+                "id": "e7",
+                "source": "input_q3",
+                "target": "msg_q4"
+            },
+            {
+                "id": "e8",
+                "source": "msg_q4",
+                "target": "input_q4"
+            },
+            {
+                "id": "e9",
+                "source": "input_q4",
+                "target": "msg_q5"
+            },
+            {
+                "id": "e10",
+                "source": "msg_q5",
+                "target": "input_q5"
+            },
+            {
+                "id": "e11",
+                "source": "input_q5",
+                "target": "msg_q6"
+            },
+            {
+                "id": "e12",
+                "source": "msg_q6",
+                "target": "input_q6"
+            },
+            {
+                "id": "e13",
+                "source": "input_q6",
+                "target": "cond_job"
+            },
+            {
+                "id": "e14",
+                "source": "cond_job",
+                "target": "msg_freelance",
+                "sourceHandle": "true"
+            },
+            {
+                "id": "e15",
+                "source": "cond_job",
+                "target": "msg_q7",
+                "sourceHandle": "false"
+            },
+            {
+                "id": "e16",
+                "source": "msg_freelance",
+                "target": "input_jobdetail"
+            },
+            {
+                "id": "e17",
+                "source": "input_jobdetail",
+                "target": "msg_q7"
+            },
+            {
+                "id": "e18",
+                "source": "msg_q7",
+                "target": "input_q7"
+            },
+            {
+                "id": "e19",
+                "source": "input_q7",
+                "target": "msg_confirm"
+            },
+            {
+                "id": "e20",
+                "source": "msg_confirm",
+                "target": "input_confirm"
+            },
+            {
+                "id": "e21",
+                "source": "input_confirm",
+                "target": "cond_confirm"
+            },
+            {
+                "id": "e22",
+                "source": "cond_confirm",
+                "target": "action_tag",
+                "sourceHandle": "true"
+            },
+            {
+                "id": "e23",
+                "source": "cond_confirm",
+                "target": "msg_wrong",
+                "sourceHandle": "false"
+            },
+            {
+                "id": "e24",
+                "source": "action_tag",
+                "target": "msg_correct"
+            },
+            {
+                "id": "e25",
+                "source": "msg_correct",
+                "target": "end_1"
+            },
+            {
+                "id": "e26",
+                "source": "msg_wrong",
+                "target": "end_1"
+            }
+        ],
+        "isActive": true,
+        "version": 5,
+        "createdAt": "2026-04-15T15:41:32.090Z",
+        "updatedAt": "2026-04-17T04:17:35.879Z",
+        "__v": 0
+    }
+}

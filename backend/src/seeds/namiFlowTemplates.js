@@ -94,7 +94,7 @@ const TEMPLATES = [
         id: 'input_q3',
         type: 'input',
         position: { x: 280, y: 960 },
-        data: { label: '儲存出生年次', messages: [], inputField: 'birthYear', inputType: 'number' },
+        data: { label: '儲存出生年次', messages: [], inputField: 'birthYear', inputType: 'text' },
       },
       {
         id: 'msg_q4',
@@ -202,7 +202,7 @@ const TEMPLATES = [
           label: '結束感謝',
           messages: [{
             type: 'text',
-            text: '感謝你！請確認以下資訊是否正確：\n地區：{{var.city}}\n感情狀態：{{var.maritalStatus}}',
+            text: '感謝你！請確認以下資訊是否正確：\n感情狀態：{{var.maritalStatus}}\n地區：{{var.city}}\n出生年：{{var.birthYear}}\n學歷：{{var.education}}\n身高體重：{{var.heightWeight}}\n職業：{{var.occupation}}\n手機：{{var.phoneNumber}}',
             quickReplies: [
               { label: '資料正確', text: '資料正確' },
               { label: '訊息有錯', text: '訊息有錯' },
