@@ -1,5 +1,5 @@
 // ContactsPage.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useChannelStore } from '../store/channelStore';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
@@ -38,6 +38,15 @@ export function ContactsPage() {
   const [allTags, setAllTags] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+
+  const historyBottomRef = useRef(null);
+
+  // 切到對話紀錄 tab 或切換聯絡人時，自動捲到最新訊息
+  useEffect(() => {
+    if (activeTab === 'history') {
+      setTimeout(() => historyBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    }
+  }, [activeTab, selected?._id]);
 
   // 收集資料編輯狀態
   const [activeTab, setActiveTab] = useState('data');
@@ -331,26 +340,29 @@ export function ContactsPage() {
                     <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>使用者傳訊後將自動記錄</div>
                   </div>
                 ) : (
-                  [...(selected.conversationHistory)].reverse().map((msg, i) => (
-                    <div key={i} style={{ display: 'flex', flexDirection: msg.role === 'user' ? 'row' : 'row-reverse', gap: 6, alignItems: 'flex-end' }}>
-                      <div style={{
-                        maxWidth: '78%',
-                        padding: '7px 11px',
-                        borderRadius: msg.role === 'user' ? '14px 14px 14px 3px' : '14px 14px 3px 14px',
-                        background: msg.role === 'user' ? '#F1F5F9' : '#6366F1',
-                        color: msg.role === 'user' ? '#0F172A' : '#fff',
-                        fontSize: 12,
-                        lineHeight: 1.55,
-                        wordBreak: 'break-word',
-                        whiteSpace: 'pre-wrap',
-                      }}>
-                        {msg.content}
+                  <>
+                    {(selected.conversationHistory).map((msg, i) => (
+                      <div key={i} style={{ display: 'flex', flexDirection: msg.role === 'user' ? 'row' : 'row-reverse', gap: 6, alignItems: 'flex-end' }}>
+                        <div style={{
+                          maxWidth: '78%',
+                          padding: '7px 11px',
+                          borderRadius: msg.role === 'user' ? '14px 14px 14px 3px' : '14px 14px 3px 14px',
+                          background: msg.role === 'user' ? '#F1F5F9' : '#6366F1',
+                          color: msg.role === 'user' ? '#0F172A' : '#fff',
+                          fontSize: 12,
+                          lineHeight: 1.55,
+                          wordBreak: 'break-word',
+                          whiteSpace: 'pre-wrap',
+                        }}>
+                          {msg.content}
+                        </div>
+                        <div style={{ fontSize: 10, color: '#CBD5E1', flexShrink: 0, paddingBottom: 2 }}>
+                          {msg.timestamp ? format(new Date(msg.timestamp), 'MM/dd HH:mm') : ''}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 10, color: '#CBD5E1', flexShrink: 0, paddingBottom: 2 }}>
-                        {msg.timestamp ? format(new Date(msg.timestamp), 'MM/dd HH:mm') : ''}
-                      </div>
-                    </div>
-                  ))
+                    ))}
+                    <div ref={historyBottomRef} />
+                  </>
                 )}
               </div>
             )}
