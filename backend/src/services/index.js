@@ -136,6 +136,8 @@ function convertToMessengerFormat(msg) {
       };
     case 'image':
       return { attachment: { type: 'image', payload: { url: msg.imageUrl } } };
+    case 'video':
+      return { attachment: { type: 'video', payload: { url: msg.videoUrl } } };
     case 'buttons':
       return {
         attachment: {

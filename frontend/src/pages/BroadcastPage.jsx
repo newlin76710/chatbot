@@ -57,7 +57,7 @@ export default function BroadcastPage() {
           segments: form.audienceSegments,
           tags: form.audienceTags.split(',').map(t => t.trim()).filter(Boolean),
         },
-        messages: form.messages.filter(m => m.text || m.imageUrl),
+        messages: form.messages.filter(m => m.text || m.imageUrl || m.videoUrl),
         scheduledAt: form.scheduledAt || null,
       };
       if (editId) {
