@@ -202,8 +202,9 @@ async function sendBroadcastNow(broadcast, contacts, channelArg) {
 
   const lineIds = contacts.filter(c => c.platform === 'line').map(c => c.platformId);
   const messengerIds = contacts.filter(c => c.platform === 'messenger').map(c => c.platformId);
+  const instagramIds = contacts.filter(c => c.platform === 'instagram').map(c => c.platformId);
 
-  console.log(`[廣播] LINE 用戶: ${lineIds.length}，Messenger 用戶: ${messengerIds.length}`);
+  console.log(`[廣播] LINE 用戶: ${lineIds.length}，Messenger 用戶: ${messengerIds.length}，Instagram 用戶: ${instagramIds.length}`);
 
   if (lineIds.length > 0 && channel.platform === 'line') {
     try {
@@ -236,6 +237,20 @@ async function sendBroadcastNow(broadcast, contacts, channelArg) {
         }
         sent++;
       } catch (e) {
+        failed++;
+      }
+    }
+  }
+
+  if (instagramIds.length > 0 && channel.platform === 'instagram') {
+    for (const id of instagramIds) {
+      try {
+        for (const msg of broadcast.messages) {
+          await sendMessengerMessage(channel, id, msg);
+        }
+        sent++;
+      } catch (e) {
+        console.error(`[廣播] Instagram 發送失敗 (${id}):`, e.response?.data || e.message);
         failed++;
       }
     }

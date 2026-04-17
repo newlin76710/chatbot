@@ -336,6 +336,7 @@ export function ChannelsPage() {
   const PLATFORM_INFO = {
     line: { label: 'LINE', color: '#22C55E', bg: '#F0FDF4', docs: 'https://developers.line.biz' },
     messenger: { label: 'Messenger', color: '#3B82F6', bg: '#EFF6FF', docs: 'https://developers.facebook.com/docs/messenger-platform' },
+    instagram: { label: 'Instagram', color: '#E1306C', bg: '#FFF0F5', docs: 'https://developers.facebook.com/docs/messenger-platform/instagram' },
   };
 
   return (
@@ -343,7 +344,7 @@ export function ChannelsPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#0F172A' }}>頻道管理</h1>
-          <p style={{ margin: '4px 0 0', color: '#64748B', fontSize: 14 }}>連接 LINE、Messenger 等平台</p>
+          <p style={{ margin: '4px 0 0', color: '#64748B', fontSize: 14 }}>連接 LINE、Messenger、Instagram 等平台</p>
         </div>
         <button onClick={() => setShowForm(true)}
           style={{ padding: '9px 20px', borderRadius: 8, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
@@ -374,6 +375,7 @@ export function ChannelsPage() {
                   value={form.platform} onChange={e => setForm(f => ({ ...f, platform: e.target.value }))}>
                   <option value="line">LINE</option>
                   <option value="messenger">Facebook Messenger</option>
+                  <option value="instagram">Instagram</option>
                 </select>
               </div>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
@@ -394,7 +396,7 @@ export function ChannelsPage() {
             <div key={ch._id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', padding: 22 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 8, background: pi.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
-                  {ch.platform === 'line' ? '🟢' : '🔵'}
+                  {ch.platform === 'line' ? '🟢' : ch.platform === 'instagram' ? '📷' : '🔵'}
                 </div>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 15, color: '#0F172A' }}>{ch.name}</div>

@@ -138,7 +138,7 @@ async function executeMessageNode(node, context) {
     const rendered = renderTemplate(msg, context);
     if (channel.platform === 'line') {
       await sendLineMessage(channel, contact.platformId, rendered);
-    } else if (channel.platform === 'messenger') {
+    } else if (channel.platform === 'messenger' || channel.platform === 'instagram') {
       await sendMessengerMessage(channel, contact.platformId, rendered);
     }
     if (messages.length > 1) await sleep(500);

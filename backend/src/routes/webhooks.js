@@ -236,5 +236,112 @@ async function handleMessengerEvent(event, channel) {
   }
 }
 
+// ─── Instagram Webhook ───────────────────────────────────────
+// Verify challenge（與 Messenger 相同機制）
+router.get('/instagram/:channelId', async (req, res) => {
+  const channel = await Channel.findById(req.params.channelId);
+  if (!channel) return res.sendStatus(404);
+
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  if (mode === 'subscribe' && token === channel.credentials.verifyToken) {
+    res.status(200).send(challenge);
+  } else {
+    res.sendStatus(403);
+  }
+});
+
+router.post('/instagram/:channelId', async (req, res) => {
+  res.status(200).send('EVENT_RECEIVED');
+
+  try {
+    const channel = await Channel.findById(req.params.channelId);
+    if (!channel || channel.platform !== 'instagram') return;
+
+    // 驗證 App Secret 簽章
+    const sig = req.headers['x-hub-signature-256'];
+    if (sig) {
+      const expected = 'sha256=' + crypto
+        .createHmac('sha256', channel.credentials.channelSecret)
+        .update(JSON.stringify(req.body))
+        .digest('hex');
+      if (sig !== expected) return;
+    }
+
+    const { entry } = req.body;
+    for (const e of entry) {
+      for (const messaging of (e.messaging || [])) {
+        await handleInstagramEvent(messaging, channel);
+      }
+    }
+  } catch (err) {
+    console.error('Instagram webhook error:', err);
+  }
+});
+
+async function handleInstagramEvent(event, channel) {
+  const { sender, message, postback } = event;
+  if (!sender?.id) return;
+
+  let contact = await Contact.findOneAndUpdate(
+    { platformId: sender.id, channel: channel._id, platform: 'instagram' },
+    { lastInteractedAt: new Date() },
+    { upsert: true, new: true }
+  );
+
+  // 取得 Instagram 使用者資料
+  if (!contact.displayName) {
+    try {
+      const axios = require('axios');
+      const profile = await axios.get(
+        `https://graph.facebook.com/${sender.id}?fields=name,profile_pic&access_token=${channel.credentials.accessToken}`
+      );
+      contact.displayName = profile.data.name;
+      contact.pictureUrl = profile.data.profile_pic;
+      await contact.save();
+    } catch (_) {}
+  }
+
+  const text = message?.text || '';
+  const postbackPayload = postback?.payload || '';
+  const triggerType = postback ? 'postback' : 'keyword';
+
+  // 若聯絡人在流程中等待輸入，繼續該流程
+  if (contact.currentFlowState?.waitingForInput && text) {
+    const flow = await Flow.findById(contact.currentFlowState.flowId);
+    if (flow) {
+      await processMessage({ contact, flow, channel, text, isResuming: true });
+      return;
+    }
+  }
+
+  const flows = await Flow.find({ channel: channel._id, isActive: true });
+  console.log('[Instagram] 活躍流程數量:', flows.length, '| 文字:', text);
+
+  for (const flow of flows) {
+    const triggerNode = flow.nodes.find(n => n.type === 'trigger');
+    if (!triggerNode) continue;
+    const t = triggerNode.data?.trigger || triggerNode.data || {};
+    let matches = false;
+
+    if (t.type === 'any') matches = true;
+    else if (t.type === 'postback' && triggerType === 'postback' && t.postbackPayload === postbackPayload) matches = true;
+    else if (t.type === 'keyword' && text) {
+      matches = t.keywords?.some(kw => {
+        if (t.matchMode === 'exact') return text.toLowerCase() === kw.toLowerCase();
+        if (t.matchMode === 'startsWith') return text.toLowerCase().startsWith(kw.toLowerCase());
+        return text.toLowerCase().includes(kw.toLowerCase());
+      });
+    }
+
+    if (matches) {
+      await processMessage({ contact, flow, channel, text, postbackPayload });
+      break;
+    }
+  }
+}
+
 // ─── Channels CRUD ────────────────────────────────────────────
 module.exports = router;
