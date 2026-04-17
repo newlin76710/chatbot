@@ -3,6 +3,7 @@ import { useChannelStore } from '../store/channelStore';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import MediaUpload from '../components/MediaUpload';
 
 const STATUS_LABELS = {
   draft: '草稿',
@@ -208,13 +209,27 @@ export default function BroadcastPage() {
                         }}
                         placeholder="您的訊息... 使用 {{contact.name}} 個人化內容" />
                     )}
-                    {(msg.type === 'image' || msg.type === 'video') && (
-                      <input style={inputSt} value={msg.imageUrl || msg.videoUrl || ''}
-                        onChange={e => {
-                          const key = msg.type === 'image' ? 'imageUrl' : 'videoUrl';
-                          const next = form.messages.map((m, idx) => idx === i ? { ...m, [key]: e.target.value } : m);
+                    {msg.type === 'image' && (
+                      <MediaUpload
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                        url={msg.imageUrl || ''}
+                        onUrl={url => {
+                          const next = form.messages.map((m, idx) => idx === i ? { ...m, imageUrl: url } : m);
                           setForm(f => ({ ...f, messages: next }));
-                        }} placeholder={`${msg.type === 'image' ? '圖片' : '影片'} URL...`} />
+                        }}
+                        preview="image"
+                      />
+                    )}
+                    {msg.type === 'video' && (
+                      <MediaUpload
+                        accept="video/mp4,video/quicktime"
+                        url={msg.videoUrl || ''}
+                        onUrl={url => {
+                          const next = form.messages.map((m, idx) => idx === i ? { ...m, videoUrl: url } : m);
+                          setForm(f => ({ ...f, messages: next }));
+                        }}
+                        preview="video"
+                      />
                     )}
                   </div>
                 ))}
