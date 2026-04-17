@@ -39,6 +39,10 @@ export function ContactsPage() {
   const [selected, setSelected] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
+  // 收集資料編輯狀態
+  const [activeTab, setActiveTab] = useState('data');
+  const [editingFields, setEditingFields] = useState(false);
+
   const historyBottomRef = useRef(null);
 
   // 切到對話紀錄 tab 或切換聯絡人時，自動捲到最新訊息
@@ -47,10 +51,6 @@ export function ContactsPage() {
       setTimeout(() => historyBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     }
   }, [activeTab, selected?._id]);
-
-  // 收集資料編輯狀態
-  const [activeTab, setActiveTab] = useState('data');
-  const [editingFields, setEditingFields] = useState(false);
   const [fieldDraft, setFieldDraft] = useState({}); // { key: value }
   const [newFieldKey, setNewFieldKey] = useState('');
   const [newFieldVal, setNewFieldVal] = useState('');
