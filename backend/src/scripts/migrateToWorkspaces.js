@@ -1,12 +1,27 @@
 const path = require('path');
+const fs = require('fs');
+
+// 手動載入 .env（不依賴 dotenv 模組）
+const envPath = path.join(__dirname, '../../.env');
+if (fs.existsSync(envPath)) {
+  fs.readFileSync(envPath, 'utf8').split('\n').forEach(line => {
+    const m = line.match(/^\s*([^#=\s]+)\s*=\s*(.*)\s*$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^['"]|['"]$/g, '');
+  });
+}
+
+// 確保 require 可以找到 node_modules
 const backendRoot = path.join(__dirname, '../..');
-require(path.join(backendRoot, 'node_modules/dotenv')).config({ path: path.join(backendRoot, '.env') });
-const mongoose = require(path.join(backendRoot, 'node_modules/mongoose'));
 process.chdir(backendRoot);
+
+const mongoose = require('mongoose');
 const { User, Workspace, Channel, Flow, Segment, Broadcast, Campaign } = require('../models');
 
 async function migrate() {
-  await mongoose.connect(process.env.MONGODB_URI);
+  const uri = process.env.MONGODB_URI;
+  if (!uri) { console.error('MONGODB_URI not set'); process.exit(1); }
+
+  await mongoose.connect(uri);
   console.log('Connected to MongoDB');
 
   const users = await User.find({});
