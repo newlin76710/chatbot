@@ -21,6 +21,8 @@ export default function Layout() {
   const { workspaces, activeWorkspaceId, setActiveWorkspace, fetchWorkspaces, myRole } = useWorkspaceStore();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
+  const [showNewWs, setShowNewWs] = useState(false);
+  const [newWsName, setNewWsName] = useState('');
 
   useEffect(() => {
     fetchWorkspaces().then(() => {
@@ -36,6 +38,19 @@ export default function Layout() {
 
   const handleWorkspaceChange = (id) => {
     setActiveWorkspace(id);
+  };
+
+  const handleCreateWorkspace = async () => {
+    if (!newWsName.trim()) return;
+    try {
+      const ws = await useWorkspaceStore.getState().createWorkspace(newWsName.trim());
+      setActiveWorkspace(ws.id);
+      setNewWsName('');
+      setShowNewWs(false);
+      fetchChannels();
+    } catch (e) {
+      alert(e.response?.data?.error || '建立失敗');
+    }
   };
 
   const role = myRole();
@@ -64,11 +79,27 @@ export default function Layout() {
         </div>
 
         {/* Workspace Selector */}
-        {!collapsed && workspaces.length > 0 && (
+        {!collapsed && (
           <div style={{ padding: '10px 12px', borderBottom: '1px solid #1E293B' }}>
-            <div style={{ fontSize: 10, color: '#475569', marginBottom: 4, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-              工作區
+            <div style={{ fontSize: 10, color: '#475569', marginBottom: 4, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>工作區</span>
+              <button onClick={() => setShowNewWs(v => !v)} title="新增工作區"
+                style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 2px' }}>＋</button>
             </div>
+            {showNewWs && (
+              <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
+                <input
+                  autoFocus value={newWsName} onChange={e => setNewWsName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleCreateWorkspace(); if (e.key === 'Escape') setShowNewWs(false); }}
+                  placeholder="工作區名稱"
+                  style={{ flex: 1, padding: '5px 8px', borderRadius: 6, background: '#0F172A', color: '#E2E8F0', border: '1px solid #6366F1', fontSize: 12, outline: 'none' }}
+                />
+                <button onClick={handleCreateWorkspace}
+                  style={{ padding: '5px 10px', borderRadius: 6, background: '#6366F1', color: '#fff', border: 'none', fontSize: 12, cursor: 'pointer' }}>
+                  建立
+                </button>
+              </div>
+            )}
             <select
               value={activeWorkspaceId || ''}
               onChange={e => handleWorkspaceChange(e.target.value)}
