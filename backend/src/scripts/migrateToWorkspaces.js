@@ -1,5 +1,8 @@
-require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
-const mongoose = require('mongoose');
+const path = require('path');
+const backendRoot = path.join(__dirname, '../..');
+require(path.join(backendRoot, 'node_modules/dotenv')).config({ path: path.join(backendRoot, '.env') });
+const mongoose = require(path.join(backendRoot, 'node_modules/mongoose'));
+process.chdir(backendRoot);
 const { User, Workspace, Channel, Flow, Segment, Broadcast, Campaign } = require('../models');
 
 async function migrate() {
