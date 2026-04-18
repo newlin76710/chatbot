@@ -568,9 +568,19 @@ export function ChannelsPage() {
                 </span>
               </div>
 
-              <div style={{ background: '#F8F9FC', borderRadius: 8, padding: '10px 12px', marginBottom: 12, fontSize: 11, fontFamily: 'monospace', color: '#64748B', wordBreak: 'break-all' }}>
-                Webhook: /webhook/{ch.platform}/{ch._id}
+              <div style={{ background: '#F8F9FC', borderRadius: 8, padding: '10px 12px', marginBottom: 8, fontSize: 11, fontFamily: 'monospace', color: '#64748B', wordBreak: 'break-all' }}>
+                <span style={{ color: '#94A3B8' }}>Webhook：</span>/webhook/{ch.platform}/{ch._id}
               </div>
+              {(ch.platform === 'messenger' || ch.platform === 'instagram') && ch.credentials?.verifyToken && (
+                <div style={{ background: '#FFF7ED', borderRadius: 8, padding: '10px 12px', marginBottom: 8, fontSize: 11, color: '#92400E', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>Verify Token：</span>
+                  <span style={{ fontFamily: 'monospace', wordBreak: 'break-all', flex: 1 }}>{ch.credentials.verifyToken}</span>
+                  <button onClick={() => { navigator.clipboard.writeText(ch.credentials.verifyToken); toast.success('已複製'); }}
+                    style={{ padding: '2px 8px', borderRadius: 4, border: '1px solid #FCD34D', background: '#FFFBEB', color: '#92400E', cursor: 'pointer', fontSize: 10, whiteSpace: 'nowrap' }}>
+                    複製
+                  </button>
+                </div>
+              )}
 
               <div style={{ display: 'flex', gap: 8 }}>
                 <a href={pi.docs} target="_blank" rel="noopener noreferrer"
