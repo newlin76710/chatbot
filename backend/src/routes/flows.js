@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const workspaceAuth = require('../middleware/workspaceAuth');
 const { Flow, Channel } = require('../models');
 const NAMI_TEMPLATES = require('../seeds/namiFlowTemplates');
 
-// GET /api/flows/templates - 取得娜米流程範本列表（需在 /:id 之前）
+// GET /api/flows/templates
 router.get('/templates', auth, (req, res) => {
   const list = NAMI_TEMPLATES.map((t, i) => ({
     id: i,
@@ -16,20 +17,21 @@ router.get('/templates', auth, (req, res) => {
   res.json({ templates: list });
 });
 
-// POST /api/flows/templates/:id/import - 匯入範本為新流程（需在 /:id 之前）
-router.post('/templates/:id/import', auth, async (req, res) => {
+// POST /api/flows/templates/:id/import
+router.post('/templates/:id/import', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const { channelId } = req.body;
     const tpl = NAMI_TEMPLATES[parseInt(req.params.id)];
     if (!tpl) return res.status(404).json({ error: '找不到此範本' });
 
-    const channel = await Channel.findOne({ _id: channelId, ownedBy: req.user._id });
+    const channel = await Channel.findOne({ _id: channelId, workspace: req.workspace._id });
     if (!channel) return res.status(404).json({ error: '找不到此頻道' });
 
     const flow = await Flow.create({
       name: tpl.name,
       description: tpl.description,
       channel: channelId,
+      workspace: req.workspace._id,
       ownedBy: req.user._id,
       nodes: tpl.nodes,
       edges: tpl.edges,
@@ -41,11 +43,11 @@ router.post('/templates/:id/import', auth, async (req, res) => {
   }
 });
 
-// GET /api/flows - list all flows for a channel
-router.get('/', auth, async (req, res) => {
+// GET /api/flows
+router.get('/', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
     const { channelId } = req.query;
-    const query = { ownedBy: req.user._id };
+    const query = { workspace: req.workspace._id };
     if (channelId) query.channel = channelId;
 
     const flows = await Flow.find(query)
@@ -60,9 +62,9 @@ router.get('/', auth, async (req, res) => {
 });
 
 // GET /api/flows/:id
-router.get('/:id', auth, async (req, res) => {
+router.get('/:id', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
-    const flow = await Flow.findOne({ _id: req.params.id, ownedBy: req.user._id })
+    const flow = await Flow.findOne({ _id: req.params.id, workspace: req.workspace._id })
       .populate('channel', 'name platform');
     if (!flow) return res.status(404).json({ error: '找不到此流程' });
     res.json({ flow });
@@ -72,18 +74,19 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 // POST /api/flows
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const { name, description, channelId, nodes, edges } = req.body;
     if (!name || !channelId)
       return res.status(400).json({ error: '名稱與頻道 ID 為必填' });
 
-    const channel = await Channel.findOne({ _id: channelId, ownedBy: req.user._id });
+    const channel = await Channel.findOne({ _id: channelId, workspace: req.workspace._id });
     if (!channel) return res.status(404).json({ error: '找不到此頻道' });
 
     const flow = await Flow.create({
       name, description,
       channel: channelId,
+      workspace: req.workspace._id,
       ownedBy: req.user._id,
       nodes: nodes || [],
       edges: edges || [],
@@ -96,11 +99,11 @@ router.post('/', auth, async (req, res) => {
 });
 
 // PUT /api/flows/:id
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const { name, description, nodes, edges, isActive } = req.body;
     const flow = await Flow.findOneAndUpdate(
-      { _id: req.params.id, ownedBy: req.user._id },
+      { _id: req.params.id, workspace: req.workspace._id },
       { name, description, nodes, edges, isActive, $inc: { version: 1 } },
       { new: true, runValidators: true }
     );
@@ -112,9 +115,9 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 // PATCH /api/flows/:id/toggle
-router.patch('/:id/toggle', auth, async (req, res) => {
+router.patch('/:id/toggle', auth, workspaceAuth('editor'), async (req, res) => {
   try {
-    const flow = await Flow.findOne({ _id: req.params.id, ownedBy: req.user._id });
+    const flow = await Flow.findOne({ _id: req.params.id, workspace: req.workspace._id });
     if (!flow) return res.status(404).json({ error: '找不到此流程' });
     flow.isActive = !flow.isActive;
     await flow.save();
@@ -125,9 +128,9 @@ router.patch('/:id/toggle', auth, async (req, res) => {
 });
 
 // DELETE /api/flows/:id
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', auth, workspaceAuth('editor'), async (req, res) => {
   try {
-    const flow = await Flow.findOneAndDelete({ _id: req.params.id, ownedBy: req.user._id });
+    const flow = await Flow.findOneAndDelete({ _id: req.params.id, workspace: req.workspace._id });
     if (!flow) return res.status(404).json({ error: '找不到此流程' });
     res.json({ message: '流程已刪除' });
   } catch (err) {
@@ -136,15 +139,16 @@ router.delete('/:id', auth, async (req, res) => {
 });
 
 // POST /api/flows/:id/duplicate
-router.post('/:id/duplicate', auth, async (req, res) => {
+router.post('/:id/duplicate', auth, workspaceAuth('editor'), async (req, res) => {
   try {
-    const original = await Flow.findOne({ _id: req.params.id, ownedBy: req.user._id });
+    const original = await Flow.findOne({ _id: req.params.id, workspace: req.workspace._id });
     if (!original) return res.status(404).json({ error: '找不到此流程' });
 
     const copy = await Flow.create({
       name: `${original.name} (複製)`,
       description: original.description,
       channel: original.channel,
+      workspace: req.workspace._id,
       ownedBy: req.user._id,
       nodes: original.nodes,
       edges: original.edges,

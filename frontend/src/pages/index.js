@@ -7,3 +7,5 @@ export { default as BroadcastPage } from './BroadcastPage';
 export { default as SegmentsPage } from './SegmentsPage';
 export { ContactsPage as ContactsPage, ChannelsPage as ChannelsPage } from './ContactsChannelsPages';
 export { default as CampaignsPage } from './CampaignsPage';
+export { default as WorkspaceSettingsPage } from './WorkspaceSettingsPage';
+export { default as JoinWorkspacePage } from './JoinWorkspacePage';

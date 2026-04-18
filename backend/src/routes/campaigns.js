@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const QRCode = require('qrcode');
 const auth = require('../middleware/auth');
+const workspaceAuth = require('../middleware/workspaceAuth');
 const { Campaign, Channel } = require('../models');
 
 const BASE_URL = process.env.FRONTEND_URL || 'https://bot.ek21.com';
@@ -11,7 +12,6 @@ function generateCode() {
   return Array.from({ length: 7 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
-/** 產生平台對應的直連 URL */
 function buildDirectUrl(campaign) {
   if (campaign.platform === 'messenger') {
     const pageId = campaign.messengerPageId;
@@ -19,7 +19,6 @@ function buildDirectUrl(campaign) {
     const ref = campaign.keyword ? `?ref=${encodeURIComponent(campaign.keyword)}` : '';
     return `https://m.me/${pageId}${ref}`;
   }
-  // LINE
   const lineId = (campaign.lineId || '').replace(/^@/, '');
   if (!lineId) return null;
   const kw = campaign.keyword ? `?oaMessageText=${encodeURIComponent(campaign.keyword)}` : '';
@@ -27,10 +26,10 @@ function buildDirectUrl(campaign) {
 }
 
 // GET /api/campaigns
-router.get('/', auth, async (req, res) => {
+router.get('/', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
     const { channelId } = req.query;
-    const query = { ownedBy: req.user._id };
+    const query = { workspace: req.workspace._id };
     if (channelId) query.channel = channelId;
     const campaigns = await Campaign.find(query).sort('-createdAt');
     res.json({ campaigns });
@@ -40,12 +39,12 @@ router.get('/', auth, async (req, res) => {
 });
 
 // POST /api/campaigns
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const { channelId, name, description, keyword, lineId, messengerPageId, platform } = req.body;
     if (!name || !channelId) return res.status(400).json({ error: '名稱與頻道為必填' });
 
-    const channel = await Channel.findOne({ _id: channelId, ownedBy: req.user._id });
+    const channel = await Channel.findOne({ _id: channelId, workspace: req.workspace._id });
     if (!channel) return res.status(404).json({ error: '找不到此頻道' });
 
     let code;
@@ -58,6 +57,7 @@ router.post('/', auth, async (req, res) => {
       name, description, keyword, lineId, messengerPageId,
       platform: platform || channel.platform || 'line',
       channel: channelId,
+      workspace: req.workspace._id,
       ownedBy: req.user._id,
       code,
     });
@@ -68,11 +68,11 @@ router.post('/', auth, async (req, res) => {
 });
 
 // PATCH /api/campaigns/:id
-router.patch('/:id', auth, async (req, res) => {
+router.patch('/:id', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const { name, description, keyword, lineId, messengerPageId, platform } = req.body;
     const campaign = await Campaign.findOneAndUpdate(
-      { _id: req.params.id, ownedBy: req.user._id },
+      { _id: req.params.id, workspace: req.workspace._id },
       { name, description, keyword, lineId, messengerPageId, platform },
       { new: true }
     );
@@ -84,9 +84,9 @@ router.patch('/:id', auth, async (req, res) => {
 });
 
 // DELETE /api/campaigns/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', auth, workspaceAuth('editor'), async (req, res) => {
   try {
-    const campaign = await Campaign.findOneAndDelete({ _id: req.params.id });
+    const campaign = await Campaign.findOneAndDelete({ _id: req.params.id, workspace: req.workspace._id });
     if (!campaign) return res.status(404).json({ error: '找不到此活動' });
     res.json({ message: '已刪除' });
   } catch (err) {
@@ -94,10 +94,10 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// GET /api/campaigns/:id/qr  — QR Code (base64 data URL)
-router.get('/:id/qr', auth, async (req, res) => {
+// GET /api/campaigns/:id/qr
+router.get('/:id/qr', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
-    const campaign = await Campaign.findOne({ _id: req.params.id, ownedBy: req.user._id });
+    const campaign = await Campaign.findOne({ _id: req.params.id, workspace: req.workspace._id });
     if (!campaign) return res.status(404).json({ error: '找不到此活動' });
     const trackUrl = `${BASE_URL}/c/${campaign.code}`;
     const dataUrl = await QRCode.toDataURL(trackUrl, {
@@ -109,10 +109,10 @@ router.get('/:id/qr', auth, async (req, res) => {
   }
 });
 
-// GET /api/campaigns/:id/json  — 匯出 JSON（供廣告系統、第三方工具使用）
-router.get('/:id/json', auth, async (req, res) => {
+// GET /api/campaigns/:id/json
+router.get('/:id/json', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
-    const campaign = await Campaign.findOne({ _id: req.params.id, ownedBy: req.user._id });
+    const campaign = await Campaign.findOne({ _id: req.params.id, workspace: req.workspace._id });
     if (!campaign) return res.status(404).json({ error: '找不到此活動' });
     const trackUrl = `${BASE_URL}/c/${campaign.code}`;
     const directUrl = buildDirectUrl(campaign);
@@ -129,7 +129,6 @@ router.get('/:id/json', auth, async (req, res) => {
         stats: campaign.stats,
         createdAt: campaign.createdAt,
       },
-      // FB Messenger Referral JSON（用於廣告 JSON 欄位）
       ...(campaign.platform === 'messenger' && campaign.messengerPageId ? {
         messenger_json: {
           type: 'OPEN_THREAD',
@@ -139,7 +138,6 @@ router.get('/:id/json', auth, async (req, res) => {
           }
         }
       } : {}),
-      // LINE 廣告 JSON
       ...(campaign.platform === 'line' && campaign.lineId ? {
         line_json: {
           type: 'uri',

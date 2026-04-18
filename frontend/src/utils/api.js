@@ -8,6 +8,10 @@ const api = axios.create({
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+
+  const workspaceId = localStorage.getItem('activeWorkspaceId');
+  if (workspaceId) config.headers['X-Workspace-Id'] = workspaceId;
+
   return config;
 });
 

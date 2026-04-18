@@ -2,15 +2,16 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const workspaceAuth = require('../middleware/workspaceAuth');
 const { Contact, Channel, Flow } = require('../models');
 const { sendLineMessage, sendMessengerMessage } = require('../services');
 const { processMessage } = require('../services/flowEngine');
 
 // GET /api/contacts
-router.get('/', auth, async (req, res) => {
+router.get('/', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
     const { channelId, tag, search, page = 1, limit = 50 } = req.query;
-    const channel = await Channel.findOne({ _id: channelId, ownedBy: req.user._id });
+    const channel = await Channel.findOne({ _id: channelId, workspace: req.workspace._id });
     if (!channel) return res.status(404).json({ error: '找不到此頻道' });
 
     const query = { channel: channelId };
@@ -35,7 +36,7 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// GET /api/contacts/debug/all — 列出所有聯絡人（debug 用，部署後可刪）
+// GET /api/contacts/debug/all
 router.get('/debug/all', auth, async (req, res) => {
   try {
     const contacts = await Contact.find({})
@@ -54,8 +55,8 @@ router.get('/debug/all', auth, async (req, res) => {
   }
 });
 
-// GET /api/contacts/tags/list - get all unique tags in a channel（需在 /:id 之前）
-router.get('/tags/list', auth, async (req, res) => {
+// GET /api/contacts/tags/list
+router.get('/tags/list', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
     const { channelId } = req.query;
     const tags = await Contact.distinct('tags', { channel: channelId });
@@ -66,12 +67,16 @@ router.get('/tags/list', auth, async (req, res) => {
 });
 
 // GET /api/contacts/:id
-router.get('/:id', auth, async (req, res) => {
+router.get('/:id', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
     const contact = await Contact.findById(req.params.id)
-      .populate('segments', 'name color');
+      .populate('segments', 'name color')
+      .populate('channel');
     if (!contact) return res.status(404).json({ error: '找不到此聯絡人' });
-    // 將 Mongoose Map 明確轉為純物件，避免前端收到空 {}
+
+    if (!contact.channel?.workspace?.equals(req.workspace._id))
+      return res.status(403).json({ error: 'Forbidden' });
+
     const obj = contact.toObject();
     if (obj.customFields instanceof Map) {
       obj.customFields = Object.fromEntries(obj.customFields);
@@ -84,8 +89,8 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// PATCH /api/contacts/:id/fields — 手動設定 customFields（支援 MongoDB _id 或 LINE platformId）
-router.patch('/:id/fields', auth, async (req, res) => {
+// PATCH /api/contacts/:id/fields
+router.patch('/:id/fields', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const { fields } = req.body;
     if (!fields || typeof fields !== 'object') {
@@ -95,7 +100,6 @@ router.patch('/:id/fields', auth, async (req, res) => {
     for (const [k, v] of Object.entries(fields)) {
       setOps[`customFields.${k}`] = v;
     }
-    // 支援 MongoDB ObjectId 或 platformId 兩種查詢方式
     const isObjectId = /^[a-f\d]{24}$/i.test(req.params.id);
     const query = isObjectId ? { _id: req.params.id } : { platformId: req.params.id };
     const contact = await Contact.findOneAndUpdate(
@@ -113,7 +117,7 @@ router.patch('/:id/fields', auth, async (req, res) => {
 });
 
 // PATCH /api/contacts/:id/tags
-router.patch('/:id/tags', auth, async (req, res) => {
+router.patch('/:id/tags', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const { add = [], remove = [] } = req.body;
     const contact = await Contact.findById(req.params.id);
@@ -129,8 +133,8 @@ router.patch('/:id/tags', auth, async (req, res) => {
   }
 });
 
-// POST /api/contacts/:id/send — 後台直接傳訊息給聯絡人
-router.post('/:id/send', auth, async (req, res) => {
+// POST /api/contacts/:id/send
+router.post('/:id/send', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const { text } = req.body;
     if (!text?.trim()) return res.status(400).json({ error: '訊息不可空白' });
@@ -149,7 +153,6 @@ router.post('/:id/send', auth, async (req, res) => {
       return res.status(400).json({ error: `不支援的平台：${channel.platform}` });
     }
 
-    // 存入對話紀錄
     await Contact.updateOne(
       { _id: contact._id },
       {
@@ -169,8 +172,8 @@ router.post('/:id/send', auth, async (req, res) => {
   }
 });
 
-// POST /api/contacts/:id/trigger-flow — 後台觸發腳本給聯絡人
-router.post('/:id/trigger-flow', auth, async (req, res) => {
+// POST /api/contacts/:id/trigger-flow
+router.post('/:id/trigger-flow', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const { flowId } = req.body;
     if (!flowId) return res.status(400).json({ error: '缺少 flowId' });
@@ -178,7 +181,7 @@ router.post('/:id/trigger-flow', auth, async (req, res) => {
     const contact = await Contact.findById(req.params.id).populate('channel');
     if (!contact) return res.status(404).json({ error: '找不到此聯絡人' });
 
-    const flow = await Flow.findOne({ _id: flowId, ownedBy: req.user._id });
+    const flow = await Flow.findOne({ _id: flowId, workspace: req.workspace._id });
     if (!flow) return res.status(404).json({ error: '找不到此流程' });
 
     await processMessage({ contact, flow, channel: contact.channel, text: '' });

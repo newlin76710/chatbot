@@ -1,8 +1,33 @@
 // ============================================================
-// models/User.js
+// models/Workspace.js
 // ============================================================
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+
+const workspaceSchema = new mongoose.Schema({
+  name:    { type: String, required: true, trim: true },
+  owner:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  members: [{
+    user:     { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    role:     { type: String, enum: ['admin', 'editor', 'viewer'], default: 'editor' },
+    joinedAt: { type: Date, default: Date.now },
+  }],
+  invites: [{
+    email:     String,
+    role:      { type: String, enum: ['admin', 'editor', 'viewer'], default: 'editor' },
+    token:     String,
+    expiresAt: Date,
+    invitedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  }],
+  isActive: { type: Boolean, default: true },
+}, { timestamps: true });
+workspaceSchema.index({ 'members.user': 1 });
+workspaceSchema.index({ owner: 1 });
+const Workspace = mongoose.model('Workspace', workspaceSchema);
+
+// ============================================================
+// models/User.js
+// ============================================================
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
@@ -36,7 +61,8 @@ const channelSchema = new mongoose.Schema({
     pageId: String,
     verifyToken: String,
   },
-  ownedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  ownedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  workspace: { type: mongoose.Schema.Types.ObjectId, ref: 'Workspace' },
   isActive: { type: Boolean, default: true },
   webhookUrl: String,
   profilePicture: String,
@@ -162,7 +188,8 @@ const flowSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: String,
   channel: { type: mongoose.Schema.Types.ObjectId, ref: 'Channel', required: true },
-  ownedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  ownedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  workspace: { type: mongoose.Schema.Types.ObjectId, ref: 'Workspace' },
   nodes: [nodeSchema],
   edges: [edgeSchema],
   isActive: { type: Boolean, default: false },
@@ -183,7 +210,8 @@ const segmentSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: String,
   channel: { type: mongoose.Schema.Types.ObjectId, ref: 'Channel', required: true },
-  ownedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  ownedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  workspace: { type: mongoose.Schema.Types.ObjectId, ref: 'Workspace' },
   type: { type: String, enum: ['static', 'dynamic'], default: 'dynamic' },
   // Dynamic segment rules
   rules: [{
@@ -206,7 +234,8 @@ const Segment = mongoose.model('Segment', segmentSchema);
 const broadcastSchema = new mongoose.Schema({
   name: { type: String, required: true },
   channel: { type: mongoose.Schema.Types.ObjectId, ref: 'Channel', required: true },
-  ownedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  ownedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  workspace: { type: mongoose.Schema.Types.ObjectId, ref: 'Workspace' },
   status: { type: String, enum: ['draft', 'scheduled', 'sending', 'sent', 'failed', 'cancelled'], default: 'draft' },
   audience: {
     type: { type: String, enum: ['all', 'segments', 'tags', 'contacts'], default: 'all' },
@@ -243,7 +272,8 @@ const campaignSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: String,
   channel: { type: mongoose.Schema.Types.ObjectId, ref: 'Channel', required: true },
-  ownedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  ownedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  workspace: { type: mongoose.Schema.Types.ObjectId, ref: 'Workspace' },
   platform: { type: String, enum: ['line', 'messenger'], default: 'line' },
   code: { type: String, required: true, unique: true },   // 短碼，用於 /c/:code
   keyword: String,   // 點擊後自動發送的關鍵字（LINE & Messenger ref_param）
@@ -257,4 +287,4 @@ const campaignSchema = new mongoose.Schema({
 
 const Campaign = mongoose.model('Campaign', campaignSchema);
 
-module.exports = { User, Channel, Contact, Flow, Segment, Broadcast, Campaign };
+module.exports = { User, Workspace, Channel, Contact, Flow, Segment, Broadcast, Campaign };

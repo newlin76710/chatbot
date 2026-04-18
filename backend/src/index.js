@@ -18,6 +18,7 @@ const webhookRoutes = require('./routes/webhooks');
 const analyticsRoutes = require('./routes/analytics');
 const campaignRoutes = require('./routes/campaigns');
 const uploadRoutes = require('./routes/upload');
+const workspaceRoutes = require('./routes/workspaces');
 
 const { setupSocketHandlers } = require('./services/socketService');
 const { startScheduler } = require('./services/schedulerService');
@@ -59,6 +60,7 @@ app.use('/api/channels', channelRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/workspaces', workspaceRoutes);
 // 提供上傳檔案的靜態存取（LINE/Messenger 需要公開 HTTPS URL）
 app.use('/uploads', require('express').static('/app/uploads'));
 app.use('/webhook', webhookRoutes);

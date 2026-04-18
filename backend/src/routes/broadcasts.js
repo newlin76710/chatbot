@@ -1,14 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const workspaceAuth = require('../middleware/workspaceAuth');
 const { Broadcast, Contact, Segment } = require('../models');
 const { addBroadcastJob } = require('../services/broadcastService');
 
 // GET /api/broadcasts
-router.get('/', auth, async (req, res) => {
+router.get('/', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
     const { channelId, status } = req.query;
-    const query = { ownedBy: req.user._id };
+    const query = { workspace: req.workspace._id };
     if (channelId) query.channel = channelId;
     if (status) query.status = status;
 
@@ -22,9 +23,9 @@ router.get('/', auth, async (req, res) => {
 });
 
 // GET /api/broadcasts/:id
-router.get('/:id', auth, async (req, res) => {
+router.get('/:id', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
-    const broadcast = await Broadcast.findOne({ _id: req.params.id, ownedBy: req.user._id })
+    const broadcast = await Broadcast.findOne({ _id: req.params.id, workspace: req.workspace._id })
       .populate('channel', 'name platform credentials')
       .populate('audience.segments', 'name');
     if (!broadcast) return res.status(404).json({ error: '找不到此廣播' });
@@ -34,13 +35,14 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// POST /api/broadcasts - create draft
-router.post('/', auth, async (req, res) => {
+// POST /api/broadcasts
+router.post('/', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const { name, channelId, audience, messages, scheduledAt } = req.body;
     const broadcast = await Broadcast.create({
       name, messages,
       channel: channelId,
+      workspace: req.workspace._id,
       ownedBy: req.user._id,
       audience: audience || { type: 'all' },
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
@@ -58,11 +60,11 @@ router.post('/', auth, async (req, res) => {
 });
 
 // PUT /api/broadcasts/:id
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const { name, audience, messages, scheduledAt } = req.body;
     const broadcast = await Broadcast.findOneAndUpdate(
-      { _id: req.params.id, ownedBy: req.user._id, status: { $in: ['draft', 'scheduled'] } },
+      { _id: req.params.id, workspace: req.workspace._id, status: { $in: ['draft', 'scheduled'] } },
       { name, audience, messages, scheduledAt, status: scheduledAt ? 'scheduled' : 'draft' },
       { new: true }
     );
@@ -73,32 +75,27 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// POST /api/broadcasts/:id/send - send immediately
-router.post('/:id/send', auth, async (req, res) => {
+// POST /api/broadcasts/:id/send
+router.post('/:id/send', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const broadcast = await Broadcast.findOne({
       _id: req.params.id,
-      ownedBy: req.user._id,
+      workspace: req.workspace._id,
       status: { $in: ['draft', 'scheduled'] }
     }).populate('channel');
     if (!broadcast) return res.status(404).json({ error: '找不到此廣播' });
 
-    // 在 save() 前先保留 channel 物件（save 後可能被 depopulate）
     const channel = broadcast.channel;
-
     broadcast.status = 'sending';
     await broadcast.save();
 
-    // Resolve audience
     const contacts = await resolveAudience(broadcast);
     broadcast.stats.total = contacts.length;
     await broadcast.save();
 
-    // 等待發送完成後再回應，確保 stats 已更新
     const { sendBroadcastNow } = require('../services/broadcastService');
     await sendBroadcastNow(broadcast, contacts, channel);
 
-    // 重新讀取最新 stats 回傳給前端
     const updated = await Broadcast.findById(broadcast._id);
     res.json({ broadcast: updated, audienceCount: contacts.length });
   } catch (err) {
@@ -107,10 +104,10 @@ router.post('/:id/send', auth, async (req, res) => {
 });
 
 // POST /api/broadcasts/:id/cancel
-router.post('/:id/cancel', auth, async (req, res) => {
+router.post('/:id/cancel', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const broadcast = await Broadcast.findOneAndUpdate(
-      { _id: req.params.id, ownedBy: req.user._id, status: { $in: ['scheduled', 'sending'] } },
+      { _id: req.params.id, workspace: req.workspace._id, status: { $in: ['scheduled', 'sending'] } },
       { status: 'cancelled' },
       { new: true }
     );
@@ -122,11 +119,11 @@ router.post('/:id/cancel', auth, async (req, res) => {
 });
 
 // DELETE /api/broadcasts/:id
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const deleted = await Broadcast.findOneAndDelete({
       _id: req.params.id,
-      ownedBy: req.user._id,
+      workspace: req.workspace._id,
       status: { $ne: 'sending' },
     });
     if (!deleted) return res.status(404).json({ error: '找不到此廣播或發送中無法刪除' });
@@ -136,7 +133,6 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
-// Helper
 async function resolveAudience(broadcast) {
   const { type, segments, tags, contacts: contactIds } = broadcast.audience;
   const baseQuery = { channel: broadcast.channel._id, isFollowing: true, isBlocked: { $ne: true } };

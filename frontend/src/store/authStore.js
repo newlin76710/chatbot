@@ -12,6 +12,8 @@ export const useAuthStore = create((set, get) => ({
     try {
       const { data } = await api.get('/auth/me');
       set({ user: data.user, token });
+      const { useWorkspaceStore } = await import('./workspaceStore');
+      useWorkspaceStore.getState().setWorkspaces(data.workspaces || []);
     } catch {
       localStorage.removeItem('token');
       set({ user: null, token: null });
@@ -23,6 +25,8 @@ export const useAuthStore = create((set, get) => ({
     const { data } = await api.post('/auth/login', { email, password });
     localStorage.setItem('token', data.token);
     set({ user: data.user, token: data.token, loading: false });
+    const { useWorkspaceStore } = await import('./workspaceStore');
+    useWorkspaceStore.getState().setWorkspaces(data.workspaces || []);
     return data;
   },
 
@@ -31,11 +35,18 @@ export const useAuthStore = create((set, get) => ({
     const { data } = await api.post('/auth/register', { name, email, password });
     localStorage.setItem('token', data.token);
     set({ user: data.user, token: data.token, loading: false });
+    const { useWorkspaceStore } = await import('./workspaceStore');
+    useWorkspaceStore.getState().setWorkspaces(data.workspaces || []);
     return data;
   },
 
   logout: () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('activeWorkspaceId');
+    localStorage.removeItem('activeChannelId');
     set({ user: null, token: null });
+    import('./workspaceStore').then(({ useWorkspaceStore }) => {
+      useWorkspaceStore.getState().clearWorkspaces();
+    });
   },
 }));

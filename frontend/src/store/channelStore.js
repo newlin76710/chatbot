@@ -7,6 +7,10 @@ export const useChannelStore = create((set, get) => ({
   channelsReady: false,
 
   fetchChannels: async () => {
+    if (!localStorage.getItem('activeWorkspaceId')) {
+      set({ channels: [], channelsReady: true });
+      return;
+    }
     const { data } = await api.get('/channels');
     const current = get().activeChannelId;
     const stillValid = data.channels.some(c => c._id === current);

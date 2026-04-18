@@ -1,13 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const workspaceAuth = require('../middleware/workspaceAuth');
 const { Segment, Contact } = require('../models');
 
 // GET /api/segments
-router.get('/', auth, async (req, res) => {
+router.get('/', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
     const { channelId } = req.query;
-    const query = { ownedBy: req.user._id };
+    const query = { workspace: req.workspace._id };
     if (channelId) query.channel = channelId;
 
     const segments = await Segment.find(query).sort('-createdAt');
@@ -18,9 +19,9 @@ router.get('/', auth, async (req, res) => {
 });
 
 // GET /api/segments/:id
-router.get('/:id', auth, async (req, res) => {
+router.get('/:id', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
-    const segment = await Segment.findOne({ _id: req.params.id, ownedBy: req.user._id });
+    const segment = await Segment.findOne({ _id: req.params.id, workspace: req.workspace._id });
     if (!segment) return res.status(404).json({ error: 'Segment not found' });
     res.json({ segment });
   } catch (err) {
@@ -29,19 +30,19 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 // POST /api/segments
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const { name, description, channelId, type, rules, rulesMode, color } = req.body;
     const segment = await Segment.create({
       name, description, color,
       channel: channelId,
+      workspace: req.workspace._id,
       ownedBy: req.user._id,
       type: type || 'dynamic',
       rules: rules || [],
       rulesMode: rulesMode || 'and',
     });
 
-    // Calculate initial member count for dynamic segment
     if (type === 'dynamic' && rules?.length) {
       const count = await calculateDynamicSegmentCount(segment, channelId);
       segment.memberCount = count;
@@ -55,11 +56,11 @@ router.post('/', auth, async (req, res) => {
 });
 
 // PUT /api/segments/:id
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const { name, description, rules, rulesMode, color } = req.body;
     const segment = await Segment.findOneAndUpdate(
-      { _id: req.params.id, ownedBy: req.user._id },
+      { _id: req.params.id, workspace: req.workspace._id },
       { name, description, rules, rulesMode, color },
       { new: true }
     );
@@ -71,11 +72,10 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 // DELETE /api/segments/:id
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', auth, workspaceAuth('editor'), async (req, res) => {
   try {
-    const segment = await Segment.findOneAndDelete({ _id: req.params.id, ownedBy: req.user._id });
+    const segment = await Segment.findOneAndDelete({ _id: req.params.id, workspace: req.workspace._id });
     if (!segment) return res.status(404).json({ error: 'Segment not found' });
-    // Remove segment from contacts
     await Contact.updateMany({ segments: segment._id }, { $pull: { segments: segment._id } });
     res.json({ message: 'Segment deleted' });
   } catch (err) {
@@ -84,9 +84,9 @@ router.delete('/:id', auth, async (req, res) => {
 });
 
 // GET /api/segments/:id/contacts
-router.get('/:id/contacts', auth, async (req, res) => {
+router.get('/:id/contacts', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
-    const segment = await Segment.findOne({ _id: req.params.id, ownedBy: req.user._id });
+    const segment = await Segment.findOne({ _id: req.params.id, workspace: req.workspace._id });
     if (!segment) return res.status(404).json({ error: 'Segment not found' });
 
     let contacts;
@@ -105,7 +105,6 @@ router.get('/:id/contacts', auth, async (req, res) => {
   }
 });
 
-// Helper: convert segment rules to MongoDB query
 function buildContactQuery(rules, mode, channelId) {
   const conditions = rules.map(rule => {
     const { field, operator, value } = rule;

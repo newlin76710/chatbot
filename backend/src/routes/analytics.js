@@ -3,13 +3,17 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
-const { Contact, Flow, Broadcast } = require('../models');
+const workspaceAuth = require('../middleware/workspaceAuth');
+const { Contact, Flow, Broadcast, Channel } = require('../models');
 
 // GET /api/analytics/overview?channelId=xxx
-router.get('/overview', auth, async (req, res) => {
+router.get('/overview', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
     const { channelId } = req.query;
     if (!channelId) return res.status(400).json({ error: 'channelId required' });
+
+    const channel = await Channel.findOne({ _id: channelId, workspace: req.workspace._id });
+    if (!channel) return res.status(404).json({ error: '找不到此頻道' });
 
     const [totalContacts, newContactsToday, activeFlows, totalBroadcasts] = await Promise.all([
       Contact.countDocuments({ channel: channelId, isFollowing: true }),
@@ -21,7 +25,6 @@ router.get('/overview', auth, async (req, res) => {
       Broadcast.countDocuments({ channel: channelId, status: 'sent' }),
     ]);
 
-    // Growth over last 30 days
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const growth = await Contact.aggregate([
       { $match: { channel: new mongoose.Types.ObjectId(channelId), createdAt: { $gte: thirtyDaysAgo } } },
@@ -29,7 +32,6 @@ router.get('/overview', auth, async (req, res) => {
       { $sort: { _id: 1 } }
     ]);
 
-    // Top tags
     const topTags = await Contact.aggregate([
       { $match: { channel: new mongoose.Types.ObjectId(channelId) } },
       { $unwind: '$tags' },
