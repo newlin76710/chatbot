@@ -93,6 +93,7 @@ export default function NodeConfigPanel({ node, onUpdate, onDelete, onClose }) {
 function TriggerConfig({ data, save }) {
   const t = data.trigger || {};
   const set = (k, v) => save({ trigger: { ...t, [k]: v } });
+  const [keywordInput, setKeywordInput] = React.useState((t.keywords || []).join(', '));
 
   return (
     <>
@@ -112,8 +113,9 @@ function TriggerConfig({ data, save }) {
           <div style={sectionSt}>
             <label style={labelSt}>關鍵字（以逗號分隔）</label>
             <input style={inputSt}
-              value={(t.keywords || []).join(', ')}
-              onChange={e => set('keywords', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+              value={keywordInput}
+              onChange={e => setKeywordInput(e.target.value)}
+              onBlur={e => set('keywords', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
               placeholder="你好, 嗨, 開始, 填寫問卷" />
           </div>
           <div style={sectionSt}>
