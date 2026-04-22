@@ -325,7 +325,7 @@ function FlowListView({ flows, onCreate, onOpen, onDelete, onSetTemplate, onSetG
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: '#fff', borderRadius: 16, padding: 32, width: 580, maxHeight: '80vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>娜米機器人腳本範本</h2>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>BotDog 機器人腳本範本</h2>
               <button onClick={() => setShowTemplates(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#94A3B8' }}>×</button>
             </div>
             {[
