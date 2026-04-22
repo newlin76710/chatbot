@@ -80,6 +80,11 @@ export default function FlowBuilderPage() {
   const [flows, setFlows] = useState([]);
   const [showFlowList, setShowFlowList] = useState(!id);
 
+  // URL 的 id 改變時同步顯示狀態（例如 navigate('/flows') 後）
+  useEffect(() => {
+    setShowFlowList(!id);
+  }, [id]);
+
   // 載入流程列表
   useEffect(() => {
     if (!channelsReady || !activeChannelId) return;
