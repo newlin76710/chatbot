@@ -183,7 +183,7 @@ function MessageConfig({ data, save }) {
   const addBtn = (i) => {
     const btns = msgs[i].template?.buttons || [];
     if (btns.length >= 3) return;
-    updateMsg(i, 'template', { ...msgs[i].template, buttons: [...btns, { label: '', text: '' }] });
+    updateMsg(i, 'template', { ...msgs[i].template, buttons: [...btns, { type: 'message', label: '', text: '' }] });
   };
   const updateBtn = (mi, bi, field, val) => {
     const btns = (msgs[mi].template?.buttons || []).map((b, j) => j === bi ? { ...b, [field]: val } : b);
@@ -277,12 +277,29 @@ function MessageConfig({ data, save }) {
                 placeholder="按鈕訊息文字..." />
               <div style={subLabelSt}>按鈕（最多 3 個）</div>
               {(msg.template?.buttons || []).map((btn, bi) => (
-                <div key={bi} style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
-                  <input style={{ ...inputSt, flex: 1, fontSize: 12 }} value={btn.label || ''}
-                    onChange={e => updateBtn(i, bi, 'label', e.target.value)} placeholder="按鈕文字" />
-                  <input style={{ ...inputSt, flex: 1, fontSize: 12 }} value={btn.text || ''}
-                    onChange={e => updateBtn(i, bi, 'text', e.target.value)} placeholder="回傳文字" />
-                  <button onClick={() => removeBtn(i, bi)} style={{ background: 'none', border: 'none', color: '#F43F5E', cursor: 'pointer', flexShrink: 0 }}>×</button>
+                <div key={bi} style={{ marginBottom: 8, background: '#fff', borderRadius: 6, padding: '8px 8px 4px', border: '1px solid #E2E8F0' }}>
+                  <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+                    <select style={{ ...inputSt, flex: 1, fontSize: 12 }} value={btn.type || 'message'}
+                      onChange={e => updateBtn(i, bi, 'type', e.target.value)}>
+                      <option value="message">文字回覆</option>
+                      <option value="uri">開啟連結</option>
+                      <option value="shareOA">分享此帳號給好友</option>
+                    </select>
+                    <button onClick={() => removeBtn(i, bi)} style={{ background: 'none', border: 'none', color: '#F43F5E', cursor: 'pointer', flexShrink: 0, fontSize: 16 }}>×</button>
+                  </div>
+                  <input style={{ ...inputSt, fontSize: 12, marginBottom: 4 }} value={btn.label || ''}
+                    onChange={e => updateBtn(i, bi, 'label', e.target.value)} placeholder="按鈕顯示文字" />
+                  {(btn.type || 'message') === 'message' && (
+                    <input style={{ ...inputSt, fontSize: 12 }} value={btn.text || ''}
+                      onChange={e => updateBtn(i, bi, 'text', e.target.value)} placeholder="使用者點擊後送出的文字" />
+                  )}
+                  {btn.type === 'uri' && (
+                    <input style={{ ...inputSt, fontSize: 12 }} value={btn.url || ''}
+                      onChange={e => updateBtn(i, bi, 'url', e.target.value)} placeholder="https://..." />
+                  )}
+                  {btn.type === 'shareOA' && (
+                    <div style={{ fontSize: 11, color: '#10B981', padding: '2px 0' }}>點擊後會開啟 LINE 推薦好友畫面</div>
+                  )}
                 </div>
               ))}
               {(msg.template?.buttons || []).length < 3 && (

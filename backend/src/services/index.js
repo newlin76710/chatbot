@@ -5,8 +5,48 @@ const axios = require('axios');
 
 const LINE_API = 'https://api.line.me/v2/bot';
 
+// 快取 LINE OA basicId，1 小時更新一次
+const _basicIdCache = new Map();
+async function getLineBasicId(channel) {
+  const key = channel._id.toString();
+  const cached = _basicIdCache.get(key);
+  if (cached && Date.now() - cached.ts < 3600000) return cached.basicId;
+  const resp = await axios.get(`${LINE_API}/info`, {
+    headers: { Authorization: `Bearer ${channel.credentials.accessToken}` },
+  });
+  const basicId = resp.data.basicId;
+  _basicIdCache.set(key, { basicId, ts: Date.now() });
+  return basicId;
+}
+
+// 將訊息中的 shareOA 按鈕解析為真實 URI
+async function resolveShareButtons(message, channel) {
+  if (message.type !== 'buttons' && message.type !== 'carousel') return message;
+  const needsResolve = (btns) => (btns || []).some(b => b.type === 'shareOA');
+  const hasShare = message.type === 'buttons'
+    ? needsResolve(message.template?.buttons)
+    : (message.template?.columns || []).some(col => needsResolve(col.buttons));
+  if (!hasShare) return message;
+
+  const basicId = await getLineBasicId(channel);
+  const shareUri = `line://nv/recommendOA/${basicId}`;
+  const resolveBtn = (b) => b.type === 'shareOA' ? { ...b, type: 'uri', url: shareUri } : b;
+
+  if (message.type === 'buttons') {
+    return { ...message, template: { ...message.template, buttons: (message.template?.buttons || []).map(resolveBtn) } };
+  }
+  return {
+    ...message,
+    template: {
+      ...message.template,
+      columns: (message.template?.columns || []).map(col => ({ ...col, buttons: (col.buttons || []).map(resolveBtn) })),
+    },
+  };
+}
+
 async function sendLineMessage(channel, userId, message) {
-  const messages = convertToLineFormat([message]);
+  const resolved = await resolveShareButtons(message, channel);
+  const messages = convertToLineFormat([resolved]);
   await axios.post(
     `${LINE_API}/message/push`,
     { to: userId, messages },
@@ -20,7 +60,8 @@ async function sendLineMessage(channel, userId, message) {
 }
 
 async function sendLineMulticast(channel, userIds, messages) {
-  const lineMessages = convertToLineFormat(messages);
+  const resolved = await Promise.all(messages.map(m => resolveShareButtons(m, channel)));
+  const lineMessages = convertToLineFormat(resolved);
   // LINE multicast supports up to 500 recipients per call
   const chunks = chunkArray(userIds, 500);
   for (const chunk of chunks) {
