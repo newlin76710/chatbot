@@ -195,7 +195,7 @@ export default function FlowBuilderPage() {
       onSetGlobal={async (f) => {
         const next = !f.isGlobalTemplate;
         await api.patch(`/flows/${f._id}/set-global-template`, { isGlobalTemplate: next });
-        setFlows(fs => fs.map(x => x._id === f._id ? { ...x, isGlobalTemplate: next, isTemplate: next ? true : x.isTemplate } : x));
+        setFlows(fs => fs.map(x => x._id === f._id ? { ...x, isGlobalTemplate: next, isTemplate: next ? true : x.isTemplate /* 取消全域不影響工作區範本 */ } : x));
         toast.success(next ? `「${f.name}」已設為系統範本` : `「${f.name}」已取消系統範本`);
       }}
     />

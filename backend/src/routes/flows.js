@@ -193,9 +193,11 @@ router.patch('/:id/set-template', auth, workspaceAuth('editor'), async (req, res
 router.patch('/:id/set-global-template', auth, workspaceAuth('admin'), async (req, res) => {
   try {
     const { isGlobalTemplate } = req.body;
+    const update = { isGlobalTemplate: !!isGlobalTemplate };
+    if (isGlobalTemplate) update.isTemplate = true; // 升級為全域時順帶設為工作區範本
     const flow = await Flow.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id },
-      { isGlobalTemplate: !!isGlobalTemplate, isTemplate: !!isGlobalTemplate },
+      update,
       { new: true }
     );
     if (!flow) return res.status(404).json({ error: '找不到此流程' });
