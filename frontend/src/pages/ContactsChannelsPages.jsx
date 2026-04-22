@@ -99,12 +99,10 @@ export function ContactsPage() {
     };
   }, [activeChannelId]);
 
-  // 切到對話紀錄 tab 或切換聯絡人時，自動捲到最新訊息
+  // 切換聯絡人或有新訊息時，自動捲到最新訊息
   useEffect(() => {
-    if (activeTab === 'history') {
-      setTimeout(() => historyBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-    }
-  }, [activeTab, selected?._id, selected?.conversationHistory?.length]);
+    setTimeout(() => historyBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+  }, [selected?._id, selected?.conversationHistory?.length]);
 
   // 載入頻道流程供腳本選擇
   useEffect(() => {
@@ -339,69 +337,59 @@ export function ContactsPage() {
           </table>
         </div>
 
-        {/* 詳情面板 */}
+        {/* 詳情面板：左資料 + 右對話紀錄 */}
         {selected && (
-          <div style={{ width: 340, background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', flexShrink: 0, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
-            {/* 固定頂部：標題 + 頭像 + 分頁切換 */}
-            <div style={{ flexShrink: 0, padding: '16px 20px 0', borderBottom: '1px solid #E2E8F0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A' }}>
-                  聯絡人詳情{loadingDetail && <span style={{ fontSize: 11, color: '#94A3B8', marginLeft: 6 }}>載入中…</span>}
-                </div>
-                <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#94A3B8' }}>×</button>
-              </div>
+          <div style={{ width: 720, flexShrink: 0, background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', maxHeight: '85vh' }}>
 
-              {/* 基本資料 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#EEF2FF', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: '#6366F1' }}>
-                  {selected.displayName?.[0]?.toUpperCase() || '?'}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A' }}>{selected.displayName}</div>
-                  <div style={{ fontSize: 11, color: '#94A3B8' }}>{selected.platform}</div>
+            {/* 頂部標題列 */}
+            <div style={{ flexShrink: 0, padding: '14px 20px', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#EEF2FF', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: '#6366F1' }}>
+                {selected.displayName?.[0]?.toUpperCase() || '?'}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A' }}>{selected.displayName || '未知'}</div>
+                <div style={{ fontSize: 11, color: '#94A3B8' }}>
+                  {selected.platform}
+                  {loadingDetail && <span style={{ marginLeft: 8 }}>載入中…</span>}
                 </div>
               </div>
-
-              {/* 分頁切換 — 置頂固定 */}
-              <div style={{ display: 'flex', gap: 0 }}>
-                {[{ key: 'data', label: '資料' }, { key: 'history', label: '對話紀錄' }].map(tab => (
-                  <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
-                    flex: 1, padding: '8px 0', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                    border: 'none', background: 'none',
-                    color: activeTab === tab.key ? '#6366F1' : '#94A3B8',
-                    borderBottom: activeTab === tab.key ? '2px solid #6366F1' : '2px solid transparent',
-                    transition: 'all 0.15s',
-                  }}>{tab.label}</button>
-                ))}
-              </div>
+              <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#94A3B8', lineHeight: 1, flexShrink: 0 }}>×</button>
             </div>
 
-            {/* 可捲動主內容 */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
-            {/* 資料分頁 */}
-            {activeTab === 'data' && (
-              <>
+            {/* 主體：左欄資料 + 右欄對話 */}
+            <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+
+              {/* ── 左欄：基本資料 ── */}
+              <div style={{ width: 280, flexShrink: 0, borderRight: '1px solid #E2E8F0', overflowY: 'auto', padding: '16px 16px' }}>
+
+                {/* 基本欄位 */}
                 <div style={{ fontSize: 12, color: '#374151', marginBottom: 16 }}>
                   <div style={{ padding: '5px 0', borderBottom: '1px solid #F1F5F9' }}>
-                    <div style={{ color: '#94A3B8', marginBottom: 2 }}>帳號 ID</div>
+                    <div style={{ color: '#94A3B8', fontSize: 10, marginBottom: 2 }}>帳號 ID</div>
                     <div style={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' }}>{selected.platformId}</div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #F1F5F9' }}>
                     <span style={{ color: '#94A3B8' }}>語言</span>
                     <span>{selected.language || '—'}</span>
                   </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #F1F5F9' }}>
+                    <span style={{ color: '#94A3B8' }}>加入日期</span>
+                    <span>{selected.createdAt ? format(new Date(selected.createdAt), 'yyyy/MM/dd') : '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #F1F5F9' }}>
+                    <span style={{ color: '#94A3B8' }}>最後對話</span>
+                    <span>{selected.lastInteractedAt ? format(new Date(selected.lastInteractedAt), 'MM/dd HH:mm') : '—'}</span>
+                  </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}>
                     <span style={{ color: '#94A3B8' }}>關注中</span>
-                    <span style={{ color: selected.isFollowing ? '#22C55E' : '#F43F5E' }}>
-                      {selected.isFollowing ? '是' : '否'}
-                    </span>
+                    <span style={{ color: selected.isFollowing ? '#22C55E' : '#F43F5E' }}>{selected.isFollowing ? '是' : '否'}</span>
                   </div>
                 </div>
 
                 {/* 問卷收集資料 */}
                 <div style={{ marginBottom: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>問卷收集資料</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>問卷資料</div>
                     {!editingFields
                       ? <button onClick={() => { setEditingFields(true); setFieldDraft(selected.customFields || {}); }}
                           style={{ fontSize: 11, color: '#6366F1', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>編輯</button>
@@ -415,31 +403,27 @@ export function ContactsPage() {
                         </div>
                     }
                   </div>
-
                   {!editingFields ? (
                     Object.keys(selected.customFields || {}).length > 0 ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                         {Object.entries(selected.customFields).map(([key, value]) => (
-                          <div key={key} style={{ background: '#F8F9FC', borderRadius: 8, padding: '8px 12px' }}>
-                            <div style={{ fontSize: 10, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>
-                              {fieldLabel(key)}
-                              {FIELD_LABELS[key] ? <span style={{ fontWeight: 400, textTransform: 'none', marginLeft: 4, color: '#CBD5E1' }}>({key})</span> : null}
+                          <div key={key} style={{ background: '#F8F9FC', borderRadius: 7, padding: '6px 10px' }}>
+                            <div style={{ fontSize: 10, fontWeight: 600, color: '#94A3B8', marginBottom: 1 }}>
+                              {fieldLabel(key)}{FIELD_LABELS[key] ? <span style={{ fontWeight: 400, marginLeft: 3, color: '#CBD5E1' }}>({key})</span> : null}
                             </div>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: '#0F172A', wordBreak: 'break-word' }}>{String(value ?? '—')}</div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: '#0F172A', wordBreak: 'break-word' }}>{String(value ?? '—')}</div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div style={{ textAlign: 'center', padding: '18px 0', background: '#F8F9FC', borderRadius: 8 }}>
-                        <div style={{ fontSize: 20, marginBottom: 6 }}>📋</div>
-                        <div style={{ fontSize: 12, color: '#94A3B8' }}>尚未收集到任何資料</div>
-                        <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>流程執行後資料將顯示於此</div>
+                      <div style={{ textAlign: 'center', padding: '14px 0', background: '#F8F9FC', borderRadius: 8 }}>
+                        <div style={{ fontSize: 11, color: '#94A3B8' }}>尚未收集到任何資料</div>
                       </div>
                     )
                   ) : (
                     <div>
                       {Object.entries(fieldDraft).map(([key, value]) => (
-                        <div key={key} style={{ marginBottom: 8 }}>
+                        <div key={key} style={{ marginBottom: 7 }}>
                           <div style={{ fontSize: 10, color: '#94A3B8', marginBottom: 2 }}>{fieldLabel(key)}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                             <input style={{ ...inputSt, flex: 1 }} value={value ?? ''}
@@ -450,9 +434,9 @@ export function ContactsPage() {
                         </div>
                       ))}
                       <div style={{ borderTop: '1px dashed #E2E8F0', paddingTop: 8, marginTop: 4 }}>
-                        <div style={{ fontSize: 11, color: '#94A3B8', marginBottom: 4 }}>新增欄位</div>
+                        <div style={{ fontSize: 10, color: '#94A3B8', marginBottom: 4 }}>新增欄位</div>
                         <div style={{ display: 'flex', gap: 4 }}>
-                          <input style={{ ...inputSt, flex: '0 0 90px' }} value={newFieldKey}
+                          <input style={{ ...inputSt, flex: '0 0 80px' }} value={newFieldKey}
                             onChange={e => setNewFieldKey(e.target.value)} placeholder="欄位名稱" />
                           <input style={{ ...inputSt, flex: 1 }} value={newFieldVal}
                             onChange={e => setNewFieldVal(e.target.value)} placeholder="值" />
@@ -464,7 +448,7 @@ export function ContactsPage() {
 
                 {/* 標籤 */}
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>標籤</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>標籤</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
                     {selected.tags?.map(t => (
                       <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#F1F5F9', color: '#475569' }}>
@@ -483,85 +467,81 @@ export function ContactsPage() {
                       }
                     }} />
                 </div>
-              </>
-            )}
+              </div>
 
-            {/* 對話紀錄分頁 */}
-            {activeTab === 'history' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {(selected.conversationHistory || []).length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '28px 0' }}>
-                    <div style={{ fontSize: 28, marginBottom: 8 }}>💬</div>
-                    <div style={{ fontSize: 12, color: '#94A3B8' }}>尚無對話紀錄</div>
-                    <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>使用者傳訊後將自動記錄</div>
+              {/* ── 右欄：對話紀錄 ── */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+
+                {/* 對話訊息（可捲動） */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {(selected.conversationHistory || []).length === 0 ? (
+                    <div style={{ margin: 'auto', textAlign: 'center' }}>
+                      <div style={{ fontSize: 32, marginBottom: 8 }}>💬</div>
+                      <div style={{ fontSize: 12, color: '#94A3B8' }}>尚無對話紀錄</div>
+                      <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>使用者傳訊後將自動記錄</div>
+                    </div>
+                  ) : (
+                    <>
+                      {selected.conversationHistory.map((msg, i) => (
+                        <div key={i} style={{ display: 'flex', flexDirection: msg.role === 'user' ? 'row' : 'row-reverse', gap: 6, alignItems: 'flex-end' }}>
+                          <div style={{
+                            maxWidth: '80%', padding: '7px 11px',
+                            borderRadius: msg.role === 'user' ? '14px 14px 14px 3px' : '14px 14px 3px 14px',
+                            background: msg.role === 'user' ? '#F1F5F9' : '#6366F1',
+                            color: msg.role === 'user' ? '#0F172A' : '#fff',
+                            fontSize: 12, lineHeight: 1.55, wordBreak: 'break-word', whiteSpace: 'pre-wrap',
+                          }}>
+                            {msg.content}
+                          </div>
+                          <div style={{ fontSize: 10, color: '#CBD5E1', flexShrink: 0, paddingBottom: 2 }}>
+                            {msg.timestamp ? format(new Date(msg.timestamp), 'MM/dd HH:mm') : ''}
+                          </div>
+                        </div>
+                      ))}
+                      <div ref={historyBottomRef} />
+                    </>
+                  )}
+                </div>
+
+                {/* 固定底部：傳訊息 + 執行腳本 */}
+                <div style={{ borderTop: '1px solid #E2E8F0', padding: '10px 14px', flexShrink: 0, background: '#FAFBFC', borderRadius: '0 0 12px 0' }}>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 7 }}>
+                    <input
+                      value={sendText}
+                      onChange={e => setSendText(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { handleSendMessage(); e.preventDefault(); } }}
+                      placeholder="輸入訊息後按 Enter 傳送..."
+                      style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none', background: '#fff' }}
+                    />
+                    <button onClick={handleSendMessage} disabled={sending || !sendText.trim()} style={{
+                      padding: '7px 14px', borderRadius: 8, border: 'none',
+                      cursor: sending || !sendText.trim() ? 'not-allowed' : 'pointer',
+                      background: sending || !sendText.trim() ? '#E2E8F0' : '#6366F1',
+                      color: '#fff', fontSize: 12, fontWeight: 600, flexShrink: 0,
+                    }}>
+                      {sending ? '…' : '發送'}
+                    </button>
                   </div>
-                ) : (
-                  <>
-                    {(selected.conversationHistory).map((msg, i) => (
-                      <div key={i} style={{ display: 'flex', flexDirection: msg.role === 'user' ? 'row' : 'row-reverse', gap: 6, alignItems: 'flex-end' }}>
-                        <div style={{
-                          maxWidth: '78%',
-                          padding: '7px 11px',
-                          borderRadius: msg.role === 'user' ? '14px 14px 14px 3px' : '14px 14px 3px 14px',
-                          background: msg.role === 'user' ? '#F1F5F9' : '#6366F1',
-                          color: msg.role === 'user' ? '#0F172A' : '#fff',
-                          fontSize: 12,
-                          lineHeight: 1.55,
-                          wordBreak: 'break-word',
-                          whiteSpace: 'pre-wrap',
-                        }}>
-                          {msg.content}
-                        </div>
-                        <div style={{ fontSize: 10, color: '#CBD5E1', flexShrink: 0, paddingBottom: 2 }}>
-                          {msg.timestamp ? format(new Date(msg.timestamp), 'MM/dd HH:mm') : ''}
-                        </div>
-                      </div>
-                    ))}
-                    <div ref={historyBottomRef} />
-                  </>
-                )}
-              </div>
-            )}
-            </div>{/* 可捲動主內容結束 */}
-
-            {/* 固定底部：傳訊息 + 執行腳本 */}
-            <div style={{ borderTop: '1px solid #E2E8F0', padding: '10px 14px', flexShrink: 0, background: '#FAFBFC', borderRadius: '0 0 12px 12px' }}>
-              {/* 文字訊息列 */}
-              <div style={{ display: 'flex', gap: 6, marginBottom: 7 }}>
-                <input
-                  value={sendText}
-                  onChange={e => setSendText(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { handleSendMessage(); e.preventDefault(); } }}
-                  placeholder="輸入訊息後按 Enter 傳送..."
-                  style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none', background: '#fff' }}
-                />
-                <button onClick={handleSendMessage} disabled={sending || !sendText.trim()} style={{
-                  padding: '7px 12px', borderRadius: 8, border: 'none', cursor: sending || !sendText.trim() ? 'not-allowed' : 'pointer',
-                  background: sending || !sendText.trim() ? '#E2E8F0' : '#6366F1', color: '#fff', fontSize: 12, fontWeight: 600, flexShrink: 0,
-                }}>
-                  {sending ? '…' : '發送'}
-                </button>
-              </div>
-              {/* 腳本列 */}
-              <div style={{ display: 'flex', gap: 6 }}>
-                <select value={selectedFlowId} onChange={e => setSelectedFlowId(e.target.value)} style={{
-                  flex: 1, padding: '6px 8px', borderRadius: 7, border: '1px solid #E2E8F0',
-                  fontSize: 11, outline: 'none', color: selectedFlowId ? '#0F172A' : '#94A3B8', background: '#fff',
-                }}>
-                  <option value="">選擇腳本...</option>
-                  {contactFlows.map(f => (
-                    <option key={f._id} value={f._id}>{f.name}</option>
-                  ))}
-                </select>
-                <button onClick={handleTriggerFlow} disabled={sending || !selectedFlowId} style={{
-                  padding: '6px 12px', borderRadius: 7, border: '1px solid', cursor: !selectedFlowId ? 'not-allowed' : 'pointer',
-                  background: selectedFlowId ? '#F0FDF4' : '#F8F9FC',
-                  borderColor: selectedFlowId ? '#A7F3D0' : '#E2E8F0',
-                  color: selectedFlowId ? '#059669' : '#94A3B8',
-                  fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0,
-                }}>
-                  執行腳本
-                </button>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <select value={selectedFlowId} onChange={e => setSelectedFlowId(e.target.value)} style={{
+                      flex: 1, padding: '6px 8px', borderRadius: 7, border: '1px solid #E2E8F0',
+                      fontSize: 11, outline: 'none', color: selectedFlowId ? '#0F172A' : '#94A3B8', background: '#fff',
+                    }}>
+                      <option value="">選擇腳本...</option>
+                      {contactFlows.map(f => <option key={f._id} value={f._id}>{f.name}</option>)}
+                    </select>
+                    <button onClick={handleTriggerFlow} disabled={sending || !selectedFlowId} style={{
+                      padding: '6px 14px', borderRadius: 7, border: '1px solid',
+                      cursor: !selectedFlowId ? 'not-allowed' : 'pointer',
+                      background: selectedFlowId ? '#F0FDF4' : '#F8F9FC',
+                      borderColor: selectedFlowId ? '#A7F3D0' : '#E2E8F0',
+                      color: selectedFlowId ? '#059669' : '#94A3B8',
+                      fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0,
+                    }}>
+                      執行腳本
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
