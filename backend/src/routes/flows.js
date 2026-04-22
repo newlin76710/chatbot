@@ -3,19 +3,31 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const workspaceAuth = require('../middleware/workspaceAuth');
 const { Flow, Channel } = require('../models');
+const SYSTEM_TEMPLATES = require('../seeds/namiFlowTemplates');
 
-// GET /api/flows/templates
+// GET /api/flows/templates — 回傳系統範本 + 工作區自訂範本
 router.get('/templates', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
-    const templates = await Flow.find({ workspace: req.workspace._id, isTemplate: true })
+    const workspaceTpls = await Flow.find({ workspace: req.workspace._id, isTemplate: true })
       .select('name description nodes edges createdAt')
       .sort('-createdAt');
-    res.json({ templates: templates.map(t => ({
-      id: t._id,
-      name: t.name,
-      description: t.description,
-      nodeCount: t.nodes.length,
-    })) });
+
+    res.json({
+      systemTemplates: SYSTEM_TEMPLATES.map((t, i) => ({
+        id: String(i),
+        type: 'system',
+        name: t.name,
+        description: t.description,
+        nodeCount: t.nodes.length,
+      })),
+      workspaceTemplates: workspaceTpls.map(t => ({
+        id: t._id,
+        type: 'workspace',
+        name: t.name,
+        description: t.description,
+        nodeCount: t.nodes.length,
+      })),
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -24,12 +36,18 @@ router.get('/templates', auth, workspaceAuth('viewer'), async (req, res) => {
 // POST /api/flows/templates/:id/import
 router.post('/templates/:id/import', auth, workspaceAuth('editor'), async (req, res) => {
   try {
-    const { channelId } = req.body;
-    const tpl = await Flow.findOne({ _id: req.params.id, workspace: req.workspace._id, isTemplate: true });
-    if (!tpl) return res.status(404).json({ error: '找不到此範本' });
-
+    const { channelId, type } = req.body;
     const channel = await Channel.findOne({ _id: channelId, workspace: req.workspace._id });
     if (!channel) return res.status(404).json({ error: '找不到此頻道' });
+
+    let tpl;
+    if (type === 'system') {
+      tpl = SYSTEM_TEMPLATES[parseInt(req.params.id)];
+      if (!tpl) return res.status(404).json({ error: '找不到此範本' });
+    } else {
+      tpl = await Flow.findOne({ _id: req.params.id, workspace: req.workspace._id, isTemplate: true });
+      if (!tpl) return res.status(404).json({ error: '找不到此範本' });
+    }
 
     const flow = await Flow.create({
       name: tpl.name,

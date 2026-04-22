@@ -271,8 +271,12 @@ function FlowListView({ flows, onCreate, onOpen, onDelete, onSetTemplate }) {
   const [showTemplates, setShowTemplates] = useState(false);
   const [importing, setImporting] = useState(null);
 
+  const [systemTemplates, setSystemTemplates] = useState([]);
   const loadTemplates = () => {
-    api.get('/flows/templates').then(r => setTemplates(r.data.templates)).catch(() => {});
+    api.get('/flows/templates').then(r => {
+      setSystemTemplates(r.data.systemTemplates || []);
+      setTemplates(r.data.workspaceTemplates || []);
+    }).catch(() => {});
   };
   useEffect(() => { loadTemplates(); }, []);
 
@@ -280,14 +284,13 @@ function FlowListView({ flows, onCreate, onOpen, onDelete, onSetTemplate }) {
     if (!activeChannelId) return toast.error('請先選擇一個頻道');
     setImporting(tpl.id);
     try {
-      await api.post(`/flows/templates/${tpl.id}/import`, { channelId: activeChannelId });
+      await api.post(`/flows/templates/${tpl.id}/import`, { channelId: activeChannelId, type: tpl.type });
       toast.success(`「${tpl.name}」匯入成功！`);
       setShowTemplates(false);
       window.location.reload();
     } catch (err) {
       const msg = err.response?.data?.error || err.message || '未知錯誤';
       toast.error(`匯入失敗：${msg}`);
-      console.error('[匯入範本]', err.response?.data || err);
     }
     setImporting(null);
   };
@@ -319,33 +322,38 @@ function FlowListView({ flows, onCreate, onOpen, onDelete, onSetTemplate }) {
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>娜米機器人腳本範本</h2>
               <button onClick={() => setShowTemplates(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#94A3B8' }}>×</button>
             </div>
-            <p style={{ fontSize: 13, color: '#64748B', marginTop: 0, marginBottom: 20 }}>選擇範本即可自動建立完整流程，包含所有問卷節點與分支邏輯。</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {templates.map(tpl => (
-                <div key={tpl.id} style={{ background: '#F8F9FC', borderRadius: 12, padding: 16, border: '1px solid #E2E8F0' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A', marginBottom: 4 }}>{tpl.name}</div>
-                      <div style={{ fontSize: 12, color: '#64748B', marginBottom: 8 }}>{tpl.description}</div>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#EFF6FF', color: '#1D4ED8', fontWeight: 500 }}>
-                          {tpl.platform === 'messenger' ? 'FB Messenger' : 'LINE'}
-                        </span>
-                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#F0FDF4', color: '#15803D', fontWeight: 500 }}>
-                          {tpl.nodeCount} 個節點
-                        </span>
+            {[
+              { label: '🔒 系統範本（所有工作區共用）', list: systemTemplates, bg: '#FFFBEB', border: '#FDE68A' },
+              { label: '⭐ 自訂範本（本工作區）', list: templates, bg: '#F8F9FC', border: '#E2E8F0' },
+            ].map(({ label, list, bg, border }) => (
+              <div key={label} style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#64748B', marginBottom: 10 }}>{label}</div>
+                {list.length === 0 && (
+                  <div style={{ fontSize: 13, color: '#94A3B8', padding: '12px 0' }}>尚無範本</div>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {list.map(tpl => (
+                    <div key={tpl.id} style={{ background: bg, borderRadius: 10, padding: 14, border: `1px solid ${border}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A', marginBottom: 2 }}>{tpl.name}</div>
+                          {tpl.description && <div style={{ fontSize: 12, color: '#64748B' }}>{tpl.description}</div>}
+                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#F0FDF4', color: '#15803D', fontWeight: 500, marginTop: 6, display: 'inline-block' }}>
+                            {tpl.nodeCount} 個節點
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => handleImport(tpl)}
+                          disabled={importing === tpl.id}
+                          style={{ marginLeft: 16, padding: '7px 16px', borderRadius: 8, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
+                          {importing === tpl.id ? '匯入中...' : '匯入'}
+                        </button>
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleImport(tpl)}
-                      disabled={importing === tpl.id}
-                      style={{ marginLeft: 16, padding: '7px 16px', borderRadius: 8, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
-                      {importing === tpl.id ? '匯入中...' : '匯入'}
-                    </button>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
