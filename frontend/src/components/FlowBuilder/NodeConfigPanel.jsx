@@ -543,7 +543,7 @@ function InputConfig({ data, save }) {
               </select>
             </div>
             <textarea style={{ ...inputSt, minHeight: 60, resize: 'vertical' }}
-              placeholder="提醒訊息內容，例如：嗨！請問你有看到上面的問題嗎？"
+              placeholder="提醒訊息內容，例如：嗨！請告訴我上面問題的答案"
               value={timeout.reminderText || ''}
               onChange={e => saveTimeout({ reminderText: e.target.value })} />
           </>
