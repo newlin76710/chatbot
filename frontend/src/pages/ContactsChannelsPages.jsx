@@ -159,6 +159,29 @@ export function ContactsPage() {
     setSending(false);
   };
 
+  const handleDeleteContact = async () => {
+    if (!window.confirm(`確定要刪除「${selected.displayName || selected.platformId}」？此操作無法復原。`)) return;
+    try {
+      await api.delete(`/contacts/${selected._id}`);
+      setContacts(prev => prev.filter(c => c._id !== selected._id));
+      setSelected(null);
+      toast.success('聯絡人已刪除');
+    } catch (err) {
+      toast.error(err.response?.data?.error || '刪除失敗');
+    }
+  };
+
+  const handleClearHistory = async () => {
+    if (!window.confirm('確定要清除對話紀錄？流程狀態也會一併重置，下次互動將重新從頭執行流程。')) return;
+    try {
+      await api.delete(`/contacts/${selected._id}/history`);
+      setSelected(prev => ({ ...prev, conversationHistory: [], currentFlowState: null }));
+      toast.success('對話紀錄已清除');
+    } catch (err) {
+      toast.error(err.response?.data?.error || '清除失敗');
+    }
+  };
+
   const selectContact = async (c) => {
     setEditingFields(false);
     setActiveTab('data');
@@ -366,6 +389,14 @@ export function ContactsPage() {
                   {loadingDetail && <span style={{ marginLeft: 8 }}>載入中…</span>}
                 </div>
               </div>
+              <button onClick={handleClearHistory}
+                style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #E2E8F0', background: '#fff', color: '#64748B', fontSize: 11, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                清除紀錄
+              </button>
+              <button onClick={handleDeleteContact}
+                style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#DC2626', fontSize: 11, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                刪除聯絡人
+              </button>
               <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#94A3B8', lineHeight: 1, flexShrink: 0 }}>×</button>
             </div>
 

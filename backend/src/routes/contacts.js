@@ -186,6 +186,37 @@ router.post('/:id/send', auth, workspaceAuth('editor'), async (req, res) => {
   }
 });
 
+// DELETE /api/contacts/:id — 刪除聯絡人
+router.delete('/:id', auth, workspaceAuth('editor'), async (req, res) => {
+  try {
+    const contact = await Contact.findById(req.params.id).populate('channel');
+    if (!contact) return res.status(404).json({ error: '找不到此聯絡人' });
+    if (!contact.channel?.workspace?.equals(req.workspace._id))
+      return res.status(403).json({ error: 'Forbidden' });
+    await Contact.deleteOne({ _id: contact._id });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/contacts/:id/history — 清除對話紀錄與流程狀態
+router.delete('/:id/history', auth, workspaceAuth('editor'), async (req, res) => {
+  try {
+    const contact = await Contact.findById(req.params.id).populate('channel');
+    if (!contact) return res.status(404).json({ error: '找不到此聯絡人' });
+    if (!contact.channel?.workspace?.equals(req.workspace._id))
+      return res.status(403).json({ error: 'Forbidden' });
+    await Contact.updateOne(
+      { _id: contact._id },
+      { $set: { conversationHistory: [], currentFlowState: null } }
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/contacts/:id/trigger-flow
 router.post('/:id/trigger-flow', auth, workspaceAuth('editor'), async (req, res) => {
   try {
