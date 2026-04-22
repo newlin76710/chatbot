@@ -534,7 +534,7 @@ function InputConfig({ data, save }) {
           <>
             <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
               <input type="number" min={1} style={{ ...inputSt, width: 80 }}
-                value={timeout.value || 5}
+                value={timeout.value || 1}
                 onChange={e => saveTimeout({ value: Number(e.target.value) })} />
               <select style={inputSt} value={timeout.unit || 'minutes'}
                 onChange={e => saveTimeout({ unit: e.target.value })}>
