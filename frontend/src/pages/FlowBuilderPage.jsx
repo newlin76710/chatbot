@@ -185,12 +185,18 @@ export default function FlowBuilderPage() {
       flows={flows}
       onCreate={() => { setShowFlowList(false); setNodes([]); setEdges([]); setFlowMeta({ name: '未命名流程', isActive: false }); navigate('/flows'); }}
       onOpen={(f) => navigate(`/flows/${f._id}`)}
-      onDelete={async (f) => { await api.delete(`/flows/${f._id}`); setFlows(fs => fs.filter(x => x._id !== f._id)); }}
+      onDelete={async (f) => { await api.delete(`/flows/${f._id}`); setFlows(fs => fs.filter(x => x._id !== f._id)); return; }}
       onSetTemplate={async (f) => {
         const next = !f.isTemplate;
         await api.patch(`/flows/${f._id}/set-template`, { isTemplate: next });
-        setFlows(fs => fs.map(x => x._id === f._id ? { ...x, isTemplate: next } : x));
+        setFlows(fs => fs.map(x => x._id === f._id ? { ...x, isTemplate: next, isGlobalTemplate: next ? x.isGlobalTemplate : false } : x));
         toast.success(next ? `「${f.name}」已設為範本` : `「${f.name}」已取消範本`);
+      }}
+      onSetGlobal={async (f) => {
+        const next = !f.isGlobalTemplate;
+        await api.patch(`/flows/${f._id}/set-global-template`, { isGlobalTemplate: next });
+        setFlows(fs => fs.map(x => x._id === f._id ? { ...x, isGlobalTemplate: next, isTemplate: next ? true : x.isTemplate } : x));
+        toast.success(next ? `「${f.name}」已設為系統範本` : `「${f.name}」已取消系統範本`);
       }}
     />
   );
@@ -265,7 +271,7 @@ export default function FlowBuilderPage() {
   );
 }
 
-function FlowListView({ flows, onCreate, onOpen, onDelete, onSetTemplate }) {
+function FlowListView({ flows, onCreate, onOpen, onDelete, onSetTemplate, onSetGlobal }) {
   const { activeChannelId } = useChannelStore();
   const [templates, setTemplates] = useState([]);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -379,12 +385,18 @@ function FlowListView({ flows, onCreate, onOpen, onDelete, onSetTemplate }) {
               <span>⚡ {f.stats?.triggered || 0} 次觸發</span>
               <span>✓ {f.stats?.completed || 0} 次完成</span>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-              <button onClick={(e) => { e.stopPropagation(); onSetTemplate(f); }}
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+              <button onClick={(e) => { e.stopPropagation(); onSetTemplate(f).then(loadTemplates); }}
                 style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${f.isTemplate ? '#A5B4FC' : '#E2E8F0'}`, background: f.isTemplate ? '#EEF2FF' : '#F8F9FC', color: f.isTemplate ? '#4F46E5' : '#64748B', cursor: 'pointer', fontSize: 11, fontWeight: f.isTemplate ? 600 : 400 }}>
-                {f.isTemplate ? '★ 範本' : '☆ 設為範本'}
+                {f.isTemplate ? '★ 工作區範本' : '☆ 設為範本'}
               </button>
-              <button onClick={(e) => { e.stopPropagation(); onDelete(f); }}
+              {f.isTemplate && (
+                <button onClick={(e) => { e.stopPropagation(); onSetGlobal(f).then(loadTemplates); }}
+                  style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${f.isGlobalTemplate ? '#6EE7B7' : '#E2E8F0'}`, background: f.isGlobalTemplate ? '#ECFDF5' : '#F8F9FC', color: f.isGlobalTemplate ? '#059669' : '#64748B', cursor: 'pointer', fontSize: 11, fontWeight: f.isGlobalTemplate ? 600 : 400 }}>
+                  {f.isGlobalTemplate ? '🌐 系統範本' : '🌐 設為系統範本'}
+                </button>
+              )}
+              <button onClick={(e) => { e.stopPropagation(); onDelete(f).then(loadTemplates); }}
                 style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', fontSize: 11 }}>
                 刪除
               </button>

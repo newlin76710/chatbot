@@ -202,6 +202,7 @@ const flowSchema = new mongoose.Schema({
   edges: [edgeSchema],
   isActive: { type: Boolean, default: false },
   isTemplate: { type: Boolean, default: false },
+  isGlobalTemplate: { type: Boolean, default: false },
   stats: {
     triggered: { type: Number, default: 0 },
     completed: { type: Number, default: 0 },

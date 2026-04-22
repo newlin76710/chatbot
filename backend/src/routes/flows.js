@@ -3,29 +3,20 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const workspaceAuth = require('../middleware/workspaceAuth');
 const { Flow, Channel } = require('../models');
-const SYSTEM_TEMPLATES = require('../seeds/namiFlowTemplates');
-
-// GET /api/flows/templates — 回傳系統範本 + 工作區自訂範本
+// GET /api/flows/templates — 系統範本（全域）+ 工作區自訂範本
 router.get('/templates', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
-    const workspaceTpls = await Flow.find({ workspace: req.workspace._id, isTemplate: true })
-      .select('name description nodes edges createdAt')
-      .sort('-createdAt');
+    const [globalTpls, workspaceTpls] = await Promise.all([
+      Flow.find({ isGlobalTemplate: true }).select('name description nodes edges createdAt').sort('-createdAt'),
+      Flow.find({ workspace: req.workspace._id, isTemplate: true, isGlobalTemplate: { $ne: true } }).select('name description nodes edges createdAt').sort('-createdAt'),
+    ]);
 
     res.json({
-      systemTemplates: SYSTEM_TEMPLATES.map((t, i) => ({
-        id: String(i),
-        type: 'system',
-        name: t.name,
-        description: t.description,
-        nodeCount: t.nodes.length,
+      systemTemplates: globalTpls.map(t => ({
+        id: t._id, type: 'system', name: t.name, description: t.description, nodeCount: t.nodes.length,
       })),
       workspaceTemplates: workspaceTpls.map(t => ({
-        id: t._id,
-        type: 'workspace',
-        name: t.name,
-        description: t.description,
-        nodeCount: t.nodes.length,
+        id: t._id, type: 'workspace', name: t.name, description: t.description, nodeCount: t.nodes.length,
       })),
     });
   } catch (err) {
@@ -36,18 +27,16 @@ router.get('/templates', auth, workspaceAuth('viewer'), async (req, res) => {
 // POST /api/flows/templates/:id/import
 router.post('/templates/:id/import', auth, workspaceAuth('editor'), async (req, res) => {
   try {
-    const { channelId, type } = req.body;
+    const { channelId } = req.body;
     const channel = await Channel.findOne({ _id: channelId, workspace: req.workspace._id });
     if (!channel) return res.status(404).json({ error: '找不到此頻道' });
 
-    let tpl;
-    if (type === 'system') {
-      tpl = SYSTEM_TEMPLATES[parseInt(req.params.id)];
-      if (!tpl) return res.status(404).json({ error: '找不到此範本' });
-    } else {
-      tpl = await Flow.findOne({ _id: req.params.id, workspace: req.workspace._id, isTemplate: true });
-      if (!tpl) return res.status(404).json({ error: '找不到此範本' });
-    }
+    // 全域範本或工作區範本皆可匯入
+    const tpl = await Flow.findOne({
+      _id: req.params.id,
+      $or: [{ isGlobalTemplate: true }, { workspace: req.workspace._id, isTemplate: true }],
+    });
+    if (!tpl) return res.status(404).json({ error: '找不到此範本' });
 
     const flow = await Flow.create({
       name: tpl.name,
@@ -73,7 +62,7 @@ router.get('/', auth, workspaceAuth('viewer'), async (req, res) => {
     if (channelId) query.channel = channelId;
 
     const flows = await Flow.find(query)
-      .select('name description isActive isTemplate stats createdAt updatedAt channel')
+      .select('name description isActive isTemplate isGlobalTemplate stats createdAt updatedAt channel')
       .populate('channel', 'name platform')
       .sort('-updatedAt');
 
@@ -186,9 +175,27 @@ router.post('/:id/duplicate', auth, workspaceAuth('editor'), async (req, res) =>
 router.patch('/:id/set-template', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const { isTemplate } = req.body;
+    const update = { isTemplate: !!isTemplate };
+    if (!isTemplate) update.isGlobalTemplate = false; // 取消範本同時取消全域
     const flow = await Flow.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id },
-      { isTemplate: !!isTemplate },
+      update,
+      { new: true }
+    );
+    if (!flow) return res.status(404).json({ error: '找不到此流程' });
+    res.json({ flow });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/flows/:id/set-global-template
+router.patch('/:id/set-global-template', auth, workspaceAuth('admin'), async (req, res) => {
+  try {
+    const { isGlobalTemplate } = req.body;
+    const flow = await Flow.findOneAndUpdate(
+      { _id: req.params.id, workspace: req.workspace._id },
+      { isGlobalTemplate: !!isGlobalTemplate, isTemplate: !!isGlobalTemplate },
       { new: true }
     );
     if (!flow) return res.status(404).json({ error: '找不到此流程' });
