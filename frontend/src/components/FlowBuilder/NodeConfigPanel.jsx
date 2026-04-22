@@ -495,6 +495,9 @@ function ActionConfig({ data, save }) {
 
 // ─── 等待回覆 ─────────────────────────────────────────────────
 function InputConfig({ data, save }) {
+  const timeout = data.inputTimeout || {};
+  const saveTimeout = patch => save({ inputTimeout: { ...timeout, ...patch } });
+
   return (
     <>
       <div style={{ fontSize: 12, color: '#64748B', background: '#F0F9FF', borderRadius: 8, padding: '8px 12px', marginBottom: 12, lineHeight: 1.5 }}>
@@ -519,6 +522,32 @@ function InputConfig({ data, save }) {
           <option value="phone">電話號碼</option>
           <option value="date">日期</option>
         </select>
+      </div>
+      <div style={sectionSt}>
+        <label style={labelSt}>未回覆提醒</label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, cursor: 'pointer' }}>
+          <input type="checkbox" checked={!!timeout.enabled}
+            onChange={e => saveTimeout({ enabled: e.target.checked })} />
+          <span style={{ fontSize: 12 }}>對方未在指定時間內回覆時，自動發送提醒</span>
+        </label>
+        {timeout.enabled && (
+          <>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <input type="number" min={1} style={{ ...inputSt, width: 80 }}
+                value={timeout.value || 5}
+                onChange={e => saveTimeout({ value: Number(e.target.value) })} />
+              <select style={inputSt} value={timeout.unit || 'minutes'}
+                onChange={e => saveTimeout({ unit: e.target.value })}>
+                <option value="minutes">分鐘</option>
+                <option value="hours">小時</option>
+              </select>
+            </div>
+            <textarea style={{ ...inputSt, minHeight: 60, resize: 'vertical' }}
+              placeholder="提醒訊息內容，例如：嗨！請問你有看到上面的問題嗎？"
+              value={timeout.reminderText || ''}
+              onChange={e => saveTimeout({ reminderText: e.target.value })} />
+          </>
+        )}
       </div>
     </>
   );

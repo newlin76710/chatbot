@@ -265,6 +265,17 @@ async function executeInputNode(node, context) {
   }
   contact.currentFlowState.waitingForInput = true;
   contact.currentFlowState.inputField = node.data.inputField;
+
+  const t = node.data.inputTimeout;
+  if (t?.enabled && t?.value) {
+    const ms = (t.unit === 'hours' ? t.value * 3600 : t.value * 60) * 1000;
+    contact.currentFlowState.inputTimeoutAt = new Date(Date.now() + ms);
+    contact.currentFlowState.reminderSent = false;
+  } else {
+    contact.currentFlowState.inputTimeoutAt = undefined;
+    contact.currentFlowState.reminderSent = undefined;
+  }
+
   await contact.save();
 }
 

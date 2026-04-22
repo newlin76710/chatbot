@@ -98,6 +98,8 @@ const contactSchema = new mongoose.Schema({
     waitingForInput: Boolean,
     inputField: String,
     variables: { type: Map, of: mongoose.Schema.Types.Mixed },
+    inputTimeoutAt: Date,
+    reminderSent: Boolean,
   },
 }, { timestamps: true });
 
@@ -171,6 +173,12 @@ const nodeSchema = new mongoose.Schema({
     inputField: String,
     inputType: { type: String, enum: ['text', 'number', 'email', 'phone', 'date'] },
     inputValidation: String,
+    inputTimeout: {
+      enabled: Boolean,
+      value: Number,
+      unit: { type: String, enum: ['minutes', 'hours'] },
+      reminderText: String,
+    },
     // For jump node
     jumpToNodeId: String,
   }

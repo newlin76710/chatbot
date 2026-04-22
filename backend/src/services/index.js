@@ -306,7 +306,6 @@ async function addBroadcastJob(broadcastId, scheduledAt) {
 // ============================================================
 async function startScheduler() {
   console.log('⏰ Scheduler started');
-  // On startup, reschedule any pending broadcasts
   try {
     const { Broadcast } = require('../models');
     const pending = await Broadcast.find({ status: 'scheduled', scheduledAt: { $gt: new Date() } });
@@ -316,6 +315,52 @@ async function startScheduler() {
     console.log(`⏰ Re-queued ${pending.length} scheduled broadcasts`);
   } catch (e) {
     console.error('Scheduler error:', e);
+  }
+
+  // 每分鐘檢查等待回覆逾時的聯絡人並發送提醒
+  setInterval(checkInputTimeouts, 60 * 1000);
+}
+
+async function checkInputTimeouts() {
+  const { Contact, Flow } = require('../models');
+  const { sendLineMessage } = require('./lineService');
+  const { sendMessengerMessage } = require('./messengerService');
+
+  try {
+    const now = new Date();
+    const contacts = await Contact.find({
+      'currentFlowState.waitingForInput': true,
+      'currentFlowState.inputTimeoutAt': { $lte: now },
+      'currentFlowState.reminderSent': { $ne: true },
+    }).populate('channel');
+
+    for (const contact of contacts) {
+      try {
+        const flow = await Flow.findById(contact.currentFlowState.flowId);
+        if (!flow) continue;
+        const node = flow.nodes.find(n => n.id === contact.currentFlowState.nodeId);
+        const reminderText = node?.data?.inputTimeout?.reminderText;
+        if (!reminderText) continue;
+
+        const channel = contact.channel;
+        const msg = { type: 'text', text: reminderText };
+        if (channel.platform === 'line') {
+          await sendLineMessage(channel, contact.platformId, msg);
+        } else if (channel.platform === 'messenger' || channel.platform === 'instagram') {
+          await sendMessengerMessage(channel, contact.platformId, msg);
+        }
+
+        await Contact.updateOne(
+          { _id: contact._id },
+          { $set: { 'currentFlowState.reminderSent': true } }
+        );
+        console.log(`[Scheduler] 已發送逾時提醒給 ${contact.displayName || contact.platformId}`);
+      } catch (e) {
+        console.error(`[Scheduler] 提醒失敗 contact ${contact._id}:`, e.message);
+      }
+    }
+  } catch (e) {
+    console.error('[Scheduler] checkInputTimeouts error:', e);
   }
 }
 
