@@ -4,6 +4,7 @@ import { useChannelStore } from '../store/channelStore';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import { io as socketIO } from 'socket.io-client';
 
 const inputSt = { width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none', boxSizing: 'border-box' };
 
@@ -54,13 +55,38 @@ export function ContactsPage() {
   const [sending, setSending] = useState(false);
 
   const historyBottomRef = useRef(null);
+  const selectedRef = useRef(null);
+  selectedRef.current = selected;
+
+  // Socket.io 即時更新對話紀錄
+  useEffect(() => {
+    if (!activeChannelId) return;
+    const socket = socketIO(process.env.REACT_APP_API_URL || 'http://localhost:4000', {
+      withCredentials: true,
+      transports: ['websocket'],
+    });
+    socket.emit('join:channel', activeChannelId);
+    socket.on('contact:message', ({ contactId, message }) => {
+      const cur = selectedRef.current;
+      if (cur && String(cur._id) === String(contactId)) {
+        setSelected(prev => ({
+          ...prev,
+          conversationHistory: [...(prev.conversationHistory || []), message],
+        }));
+      }
+    });
+    return () => {
+      socket.emit('leave:channel', activeChannelId);
+      socket.disconnect();
+    };
+  }, [activeChannelId]);
 
   // 切到對話紀錄 tab 或切換聯絡人時，自動捲到最新訊息
   useEffect(() => {
     if (activeTab === 'history') {
       setTimeout(() => historyBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     }
-  }, [activeTab, selected?._id]);
+  }, [activeTab, selected?._id, selected?.conversationHistory?.length]);
 
   // 載入頻道流程供腳本選擇
   useEffect(() => {

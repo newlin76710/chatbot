@@ -408,7 +408,10 @@ async function checkInputTimeouts() {
 // ============================================================
 // services/socketService.js
 // ============================================================
+let _io = null;
+
 function setupSocketHandlers(io) {
+  _io = io;
   io.on('connection', (socket) => {
     socket.on('join:channel', (channelId) => {
       socket.join(`channel:${channelId}`);
@@ -418,6 +421,12 @@ function setupSocketHandlers(io) {
     });
     socket.on('disconnect', () => {});
   });
+}
+
+function emitContactMessage(channelId, contactId, message) {
+  if (_io) {
+    _io.to(`channel:${channelId}`).emit('contact:message', { contactId: String(contactId), message });
+  }
 }
 
 // ============================================================
@@ -435,4 +444,5 @@ module.exports = {
   sendBroadcastNow, addBroadcastJob,
   startScheduler,
   setupSocketHandlers,
+  emitContactMessage,
 };

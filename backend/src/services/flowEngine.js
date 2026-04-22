@@ -7,6 +7,7 @@
 const { Contact, Flow } = require('../models');
 const { sendLineMessage } = require('./lineService');
 const { sendMessengerMessage } = require('./messengerService');
+const { emitContactMessage } = require('./index');
 
 // Entry point
 async function processMessage({ contact, flow, channel, text, postbackPayload, isResuming = false }) {
@@ -144,14 +145,17 @@ async function executeMessageNode(node, context) {
     if (messages.length > 1) await sleep(500);
   }
 
-  contact.conversationHistory.push({
+  const botMsg = {
     role: 'bot',
     content: messages.map(m => m.text || '[media]').join(' | '),
     messageType: messages[0]?.type || 'text',
-  });
+    timestamp: new Date(),
+  };
+  contact.conversationHistory.push(botMsg);
   if (contact.conversationHistory.length > 100) {
     contact.conversationHistory = contact.conversationHistory.slice(-50);
   }
+  emitContactMessage(channel._id, contact._id, botMsg);
 }
 
 async function executeConditionNode(node, context, depth) {

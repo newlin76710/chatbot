@@ -3,6 +3,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const { Channel, Contact, Flow, Campaign } = require('../models');
 const { processMessage } = require('../services/flowEngine');
+const { emitContactMessage } = require('../services');
 
 // ─── LINE Webhook ─────────────────────────────────────────────
 router.post('/line/:channelId', async (req, res) => {
@@ -74,6 +75,15 @@ async function handleLineEvent(event, channel) {
   } else if (type === 'postback') {
     postbackPayload = postback.data;
     triggerType = 'postback';
+    // 若 payload 為 JSON（例如 ManyChat 格式），嘗試取出 ti（按鈕文字）當作 text 處理
+    try {
+      const parsed = JSON.parse(postback.data);
+      if (parsed?.ti) {
+        text = parsed.ti;
+        triggerType = 'keyword';
+        postbackPayload = '';
+      }
+    } catch (_) {}
   } else if (type === 'follow') {
     triggerType = 'follow';
   } else if (type === 'unfollow') {
@@ -82,17 +92,13 @@ async function handleLineEvent(event, channel) {
 
   // 儲存使用者訊息到對話紀錄
   if (text || postbackPayload) {
+    const displayContent = text || '[按鈕點擊]';
+    const newMsg = { role: 'user', content: displayContent, messageType: postbackPayload ? 'postback' : 'text', timestamp: new Date() };
     await Contact.updateOne(
       { _id: contact._id },
-      {
-        $push: {
-          conversationHistory: {
-            $each: [{ role: 'user', content: text || `[按鈕] ${postbackPayload}`, messageType: postbackPayload ? 'postback' : 'text', timestamp: new Date() }],
-            $slice: -100,
-          },
-        },
-      }
+      { $push: { conversationHistory: { $each: [newMsg], $slice: -100 } } }
     );
+    emitContactMessage(channel._id, contact._id, newMsg);
   }
 
   // 優先：若聯絡人在流程中等待輸入，繼續該流程
@@ -223,17 +229,12 @@ async function handleMessengerEvent(event, channel) {
 
   // 儲存使用者訊息到對話紀錄
   if (text || postbackPayload) {
+    const newMsg = { role: 'user', content: text || '[按鈕點擊]', messageType: postbackPayload ? 'postback' : 'text', timestamp: new Date() };
     await Contact.updateOne(
       { _id: contact._id },
-      {
-        $push: {
-          conversationHistory: {
-            $each: [{ role: 'user', content: text || `[按鈕] ${postbackPayload}`, messageType: postbackPayload ? 'postback' : 'text', timestamp: new Date() }],
-            $slice: -100,
-          },
-        },
-      }
+      { $push: { conversationHistory: { $each: [newMsg], $slice: -100 } } }
     );
+    emitContactMessage(channel._id, contact._id, newMsg);
   }
 
   // If contact is in mid-flow waiting for input, resume it first
@@ -352,17 +353,12 @@ async function handleInstagramEvent(event, channel) {
 
   // 儲存使用者訊息到對話紀錄
   if (text || postbackPayload) {
+    const newMsg = { role: 'user', content: text || '[按鈕點擊]', messageType: postbackPayload ? 'postback' : 'text', timestamp: new Date() };
     await Contact.updateOne(
       { _id: contact._id },
-      {
-        $push: {
-          conversationHistory: {
-            $each: [{ role: 'user', content: text || `[按鈕] ${postbackPayload}`, messageType: postbackPayload ? 'postback' : 'text', timestamp: new Date() }],
-            $slice: -100,
-          },
-        },
-      }
+      { $push: { conversationHistory: { $each: [newMsg], $slice: -100 } } }
     );
+    emitContactMessage(channel._id, contact._id, newMsg);
   }
 
   // 若聯絡人在流程中等待輸入，繼續該流程
