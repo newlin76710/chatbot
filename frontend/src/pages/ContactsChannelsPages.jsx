@@ -61,11 +61,15 @@ export function ContactsPage() {
   // Socket.io 即時更新對話紀錄
   useEffect(() => {
     if (!activeChannelId) return;
-    const socket = socketIO(process.env.REACT_APP_API_URL || 'http://localhost:4000', {
-      withCredentials: true,
-      transports: ['websocket'],
+    // 不指定 URL 時 socket.io 會連到當前頁面的 host（由 nginx 代理 /socket.io → backend）
+    // 本機開發可設定 REACT_APP_API_URL=http://localhost:4000
+    const socketUrl = process.env.REACT_APP_API_URL || undefined;
+    const socket = socketUrl
+      ? socketIO(socketUrl, { withCredentials: true })
+      : socketIO({ withCredentials: true });
+    socket.on('connect', () => {
+      socket.emit('join:channel', activeChannelId);
     });
-    socket.emit('join:channel', activeChannelId);
     socket.on('contact:message', ({ contactId, message }) => {
       const cur = selectedRef.current;
       if (cur && String(cur._id) === String(contactId)) {
@@ -74,6 +78,12 @@ export function ContactsPage() {
           conversationHistory: [...(prev.conversationHistory || []), message],
         }));
       }
+      // 更新聯絡人列表的最近互動時間
+      setContacts(prev => prev.map(c =>
+        String(c._id) === String(contactId)
+          ? { ...c, lastInteractedAt: message.timestamp || new Date().toISOString() }
+          : c
+      ));
     });
     return () => {
       socket.emit('leave:channel', activeChannelId);
