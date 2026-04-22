@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactFlow, {
   addEdge, Background, Controls, MiniMap,
   useNodesState, useEdgesState, Panel,
-  MarkerType,
+  MarkerType, getSmoothStepPath, EdgeLabelRenderer, BaseEdge,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -13,8 +13,50 @@ import NodeConfigPanel from '../components/FlowBuilder/NodeConfigPanel';
 import FlowSidebar from '../components/FlowBuilder/FlowSidebar';
 import { CUSTOM_NODE_TYPES } from '../components/FlowBuilder/CustomNodes';
 
+function DeleteEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style, markerEnd }) {
+  const [edgePath, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  const [hovered, setHovered] = useState(false);
+  return (
+    <>
+      <BaseEdge path={edgePath} markerEnd={markerEnd} style={style} />
+      {/* 透明寬邊方便 hover */}
+      <path d={edgePath} fill="none" stroke="transparent" strokeWidth={20}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} />
+      <EdgeLabelRenderer>
+        <div
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          style={{
+            position: 'absolute',
+            transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+            pointerEvents: 'all',
+            opacity: hovered ? 1 : 0,
+            transition: 'opacity 0.15s',
+          }}
+          className="nodrag nopan"
+        >
+          <button
+            onClick={() => {
+              // 透過 ReactFlow 的 onEdgesChange 刪除
+              window.__rfDeleteEdge?.(id);
+            }}
+            style={{
+              width: 20, height: 20, borderRadius: '50%', border: 'none',
+              background: '#EF4444', color: '#fff', cursor: 'pointer',
+              fontSize: 13, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+            }}
+          >×</button>
+        </div>
+      </EdgeLabelRenderer>
+    </>
+  );
+}
+
+const EDGE_TYPES = { deleteEdge: DeleteEdge };
+
 const DEFAULT_EDGE = {
-  type: 'smoothstep',
+  type: 'deleteEdge',
   animated: true,
   style: { stroke: '#6366F1', strokeWidth: 2 },
   markerEnd: { type: MarkerType.ArrowClosed, color: '#6366F1' },
@@ -93,6 +135,15 @@ export default function FlowBuilderPage() {
     setSelectedNode(null);
   }, []);
 
+  const deleteEdge = useCallback((edgeId) => {
+    setEdges(es => es.filter(e => e.id !== edgeId));
+  }, []);
+
+  useEffect(() => {
+    window.__rfDeleteEdge = deleteEdge;
+    return () => { delete window.__rfDeleteEdge; };
+  }, [deleteEdge]);
+
   const handleSave = async () => {
     if (!activeChannelId) return toast.error('請先選擇一個頻道');
     setSaving(true);
@@ -137,7 +188,7 @@ export default function FlowBuilderPage() {
     <div style={{ display: 'flex', height: '100vh', flexDirection: 'column' }}>
       {/* 工具列 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', background: '#fff', borderBottom: '1px solid #E2E8F0', flexShrink: 0 }}>
-        <button onClick={() => setShowFlowList(true)}
+        <button onClick={() => navigate('/flows')}
           style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #E2E8F0', background: 'none', cursor: 'pointer', fontSize: 13, color: '#64748B' }}>
           ← 流程列表
         </button>
@@ -179,6 +230,7 @@ export default function FlowBuilderPage() {
             onConnect={onConnect} onNodeClick={onNodeClick}
             onInit={setReactFlowInstance}
             nodeTypes={CUSTOM_NODE_TYPES}
+            edgeTypes={EDGE_TYPES}
             fitView
             style={{ background: '#F8F9FC' }}
           >
