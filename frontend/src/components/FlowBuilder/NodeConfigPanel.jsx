@@ -205,7 +205,7 @@ function MessageConfig({ data, save }) {
               onChange={e => updateMsg(i, 'type', e.target.value)}>
               {MSG_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
-            {msgs.length > 1 && (
+            {msgs.length > 0 && (
               <button onClick={() => removeMsg(i)} style={{ background: 'none', border: 'none', color: '#F43F5E', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>×</button>
             )}
           </div>
