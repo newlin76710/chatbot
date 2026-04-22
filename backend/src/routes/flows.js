@@ -3,25 +3,29 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const workspaceAuth = require('../middleware/workspaceAuth');
 const { Flow, Channel } = require('../models');
-const NAMI_TEMPLATES = require('../seeds/namiFlowTemplates');
 
 // GET /api/flows/templates
-router.get('/templates', auth, (req, res) => {
-  const list = NAMI_TEMPLATES.map((t, i) => ({
-    id: i,
-    name: t.name,
-    description: t.description,
-    platform: t.platform,
-    nodeCount: t.nodes.length,
-  }));
-  res.json({ templates: list });
+router.get('/templates', auth, workspaceAuth('viewer'), async (req, res) => {
+  try {
+    const templates = await Flow.find({ workspace: req.workspace._id, isTemplate: true })
+      .select('name description nodes edges createdAt')
+      .sort('-createdAt');
+    res.json({ templates: templates.map(t => ({
+      id: t._id,
+      name: t.name,
+      description: t.description,
+      nodeCount: t.nodes.length,
+    })) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // POST /api/flows/templates/:id/import
 router.post('/templates/:id/import', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const { channelId } = req.body;
-    const tpl = NAMI_TEMPLATES[parseInt(req.params.id)];
+    const tpl = await Flow.findOne({ _id: req.params.id, workspace: req.workspace._id, isTemplate: true });
     if (!tpl) return res.status(404).json({ error: '找不到此範本' });
 
     const channel = await Channel.findOne({ _id: channelId, workspace: req.workspace._id });
@@ -51,7 +55,7 @@ router.get('/', auth, workspaceAuth('viewer'), async (req, res) => {
     if (channelId) query.channel = channelId;
 
     const flows = await Flow.find(query)
-      .select('name description isActive stats createdAt updatedAt channel')
+      .select('name description isActive isTemplate stats createdAt updatedAt channel')
       .populate('channel', 'name platform')
       .sort('-updatedAt');
 
@@ -155,6 +159,22 @@ router.post('/:id/duplicate', auth, workspaceAuth('editor'), async (req, res) =>
       isActive: false,
     });
     res.status(201).json({ flow: copy });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/flows/:id/set-template
+router.patch('/:id/set-template', auth, workspaceAuth('editor'), async (req, res) => {
+  try {
+    const { isTemplate } = req.body;
+    const flow = await Flow.findOneAndUpdate(
+      { _id: req.params.id, workspace: req.workspace._id },
+      { isTemplate: !!isTemplate },
+      { new: true }
+    );
+    if (!flow) return res.status(404).json({ error: '找不到此流程' });
+    res.json({ flow });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

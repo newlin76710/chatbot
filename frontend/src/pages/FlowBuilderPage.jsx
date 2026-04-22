@@ -186,6 +186,12 @@ export default function FlowBuilderPage() {
       onCreate={() => { setShowFlowList(false); setNodes([]); setEdges([]); setFlowMeta({ name: '未命名流程', isActive: false }); navigate('/flows'); }}
       onOpen={(f) => navigate(`/flows/${f._id}`)}
       onDelete={async (f) => { await api.delete(`/flows/${f._id}`); setFlows(fs => fs.filter(x => x._id !== f._id)); }}
+      onSetTemplate={async (f) => {
+        const next = !f.isTemplate;
+        await api.patch(`/flows/${f._id}/set-template`, { isTemplate: next });
+        setFlows(fs => fs.map(x => x._id === f._id ? { ...x, isTemplate: next } : x));
+        toast.success(next ? `「${f.name}」已設為範本` : `「${f.name}」已取消範本`);
+      }}
     />
   );
 
@@ -259,15 +265,16 @@ export default function FlowBuilderPage() {
   );
 }
 
-function FlowListView({ flows, onCreate, onOpen, onDelete }) {
+function FlowListView({ flows, onCreate, onOpen, onDelete, onSetTemplate }) {
   const { activeChannelId } = useChannelStore();
   const [templates, setTemplates] = useState([]);
   const [showTemplates, setShowTemplates] = useState(false);
   const [importing, setImporting] = useState(null);
 
-  useEffect(() => {
+  const loadTemplates = () => {
     api.get('/flows/templates').then(r => setTemplates(r.data.templates)).catch(() => {});
-  }, []);
+  };
+  useEffect(() => { loadTemplates(); }, []);
 
   const handleImport = async (tpl) => {
     if (!activeChannelId) return toast.error('請先選擇一個頻道');
@@ -364,10 +371,16 @@ function FlowListView({ flows, onCreate, onOpen, onDelete }) {
               <span>⚡ {f.stats?.triggered || 0} 次觸發</span>
               <span>✓ {f.stats?.completed || 0} 次完成</span>
             </div>
-            <button onClick={(e) => { e.stopPropagation(); onDelete(f); }}
-              style={{ marginTop: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', fontSize: 11 }}>
-              刪除
-            </button>
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <button onClick={(e) => { e.stopPropagation(); onSetTemplate(f); }}
+                style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${f.isTemplate ? '#A5B4FC' : '#E2E8F0'}`, background: f.isTemplate ? '#EEF2FF' : '#F8F9FC', color: f.isTemplate ? '#4F46E5' : '#64748B', cursor: 'pointer', fontSize: 11, fontWeight: f.isTemplate ? 600 : 400 }}>
+                {f.isTemplate ? '★ 範本' : '☆ 設為範本'}
+              </button>
+              <button onClick={(e) => { e.stopPropagation(); onDelete(f); }}
+                style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', fontSize: 11 }}>
+                刪除
+              </button>
+            </div>
           </div>
         ))}
       </div>
