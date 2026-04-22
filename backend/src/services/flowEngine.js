@@ -135,8 +135,10 @@ async function executeMessageNode(node, context) {
   const { messages } = node.data;
   if (!messages?.length) return;
 
+  const renderedMessages = [];
   for (const msg of messages) {
     const rendered = renderTemplate(msg, context);
+    renderedMessages.push(rendered);
     if (channel.platform === 'line') {
       await sendLineMessage(channel, contact.platformId, rendered);
     } else if (channel.platform === 'messenger' || channel.platform === 'instagram') {
@@ -147,8 +149,8 @@ async function executeMessageNode(node, context) {
 
   const botMsg = {
     role: 'bot',
-    content: messages.map(m => m.text || '[media]').join(' | '),
-    messageType: messages[0]?.type || 'text',
+    content: renderedMessages.map(m => m.text || '[media]').join(' | '),
+    messageType: renderedMessages[0]?.type || 'text',
     timestamp: new Date(),
   };
   contact.conversationHistory.push(botMsg);
