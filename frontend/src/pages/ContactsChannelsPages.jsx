@@ -34,8 +34,16 @@ export function ContactsPage() {
   const [contacts, setContacts] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [filterTag, setFilterTag] = useState('');
+  const [dateField, setDateField] = useState('lastInteractedAt');
+  const [dateFromInput, setDateFromInput] = useState('');
+  const [dateToInput, setDateToInput] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [sortBy, setSortBy] = useState('lastInteractedAt');
+  const [sortDir, setSortDir] = useState('desc');
   const [allTags, setAllTags] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -167,8 +175,12 @@ export function ContactsPage() {
     const params = new URLSearchParams({ channelId: activeChannelId, page, limit: 50 });
     if (search) params.append('search', search);
     if (filterTag) params.append('tag', filterTag);
+    if (dateFrom) { params.append('dateField', dateField); params.append('dateFrom', dateFrom); }
+    if (dateTo) { params.append('dateField', dateField); params.append('dateTo', dateTo); }
+    params.append('sortBy', sortBy);
+    params.append('sortDir', sortDir);
     api.get(`/contacts?${params}`).then(r => { setContacts(r.data.contacts); setTotal(r.data.total); });
-  }, [channelsReady, activeChannelId, page, search, filterTag]);
+  }, [channelsReady, activeChannelId, page, search, filterTag, dateFrom, dateTo, dateField, sortBy, sortDir]);
 
   const handleTagAction = async (contactId, type, tag) => {
     try {
@@ -214,15 +226,41 @@ export function ContactsPage() {
       </div>
 
       {/* 篩選列 */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-        <input style={{ flex: 1, maxWidth: 280, padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, outline: 'none' }}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
+        {/* 第一行：姓名搜尋 + 標籤 */}
+        <input style={{ flex: '1 1 200px', maxWidth: 280, padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, outline: 'none' }}
           placeholder="搜尋姓名或 ID..."
-          value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+          value={searchInput}
+          onChange={e => setSearchInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { setSearch(searchInput); setDateFrom(dateFromInput); setDateTo(dateToInput); setPage(1); } }} />
         <select style={{ padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, outline: 'none', cursor: 'pointer' }}
           value={filterTag} onChange={e => { setFilterTag(e.target.value); setPage(1); }}>
           <option value="">所有標籤</option>
           {allTags.map(t => <option key={t} value={t}>#{t}</option>)}
         </select>
+        {/* 日期篩選 */}
+        <select style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, outline: 'none', cursor: 'pointer' }}
+          value={dateField} onChange={e => setDateField(e.target.value)}>
+          <option value="lastInteractedAt">最後對話時間</option>
+          <option value="createdAt">加入日期</option>
+        </select>
+        <input type="date" style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, outline: 'none' }}
+          value={dateFromInput} onChange={e => setDateFromInput(e.target.value)} />
+        <span style={{ lineHeight: '36px', color: '#94A3B8', fontSize: 13 }}>—</span>
+        <input type="date" style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, outline: 'none' }}
+          value={dateToInput} onChange={e => setDateToInput(e.target.value)} />
+        <button
+          onClick={() => { setSearch(searchInput); setDateFrom(dateFromInput); setDateTo(dateToInput); setPage(1); }}
+          style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#6366F1', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
+          搜尋
+        </button>
+        {(search || dateFrom || dateTo) && (
+          <button
+            onClick={() => { setSearchInput(''); setSearch(''); setDateFromInput(''); setDateFrom(''); setDateToInput(''); setDateTo(''); setPage(1); }}
+            style={{ padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff', color: '#64748B', fontSize: 13, cursor: 'pointer', flexShrink: 0 }}>
+            清除
+          </button>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 20 }}>
@@ -231,8 +269,29 @@ export function ContactsPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#F8F9FC' }}>
-                {['聯絡人','平台','標籤','最近互動'].map(h => (
-                  <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                {[
+                  { label: '聯絡人', field: 'displayName' },
+                  { label: '平台', field: 'platform' },
+                  { label: '標籤', field: null },
+                  { label: '加入日期', field: 'createdAt' },
+                  { label: '最後對話時間', field: 'lastInteractedAt' },
+                ].map(({ label, field }) => (
+                  <th key={label}
+                    onClick={() => {
+                      if (!field) return;
+                      if (sortBy === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                      else { setSortBy(field); setSortDir('desc'); }
+                      setPage(1);
+                    }}
+                    style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: field ? 'pointer' : 'default', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                    {label}
+                    {field && sortBy === field && (
+                      <span style={{ marginLeft: 4 }}>{sortDir === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                    {field && sortBy !== field && (
+                      <span style={{ marginLeft: 4, opacity: 0.3 }}>↕</span>
+                    )}
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -268,8 +327,11 @@ export function ContactsPage() {
                       {c.tags?.length > 3 && <span style={{ fontSize: 10, color: '#94A3B8' }}>+{c.tags.length - 3}</span>}
                     </div>
                   </td>
-                  <td style={{ padding: '10px 14px', fontSize: 12, color: '#64748B' }}>
-                    {c.lastInteractedAt ? format(new Date(c.lastInteractedAt), 'MM/dd') : '—'}
+                  <td style={{ padding: '10px 14px', fontSize: 12, color: '#64748B', whiteSpace: 'nowrap' }}>
+                    {c.createdAt ? format(new Date(c.createdAt), 'MM/dd') : '—'}
+                  </td>
+                  <td style={{ padding: '10px 14px', fontSize: 12, color: '#64748B', whiteSpace: 'nowrap' }}>
+                    {c.lastInteractedAt ? format(new Date(c.lastInteractedAt), 'MM/dd HH:mm') : '—'}
                   </td>
                 </tr>
               ))}

@@ -10,7 +10,7 @@ const { processMessage } = require('../services/flowEngine');
 // GET /api/contacts
 router.get('/', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
-    const { channelId, tag, search, page = 1, limit = 50 } = req.query;
+    const { channelId, tag, search, page = 1, limit = 50, dateField, dateFrom, dateTo, sortBy = 'lastInteractedAt', sortDir = 'desc' } = req.query;
     const channel = await Channel.findOne({ _id: channelId, workspace: req.workspace._id });
     if (!channel) return res.status(404).json({ error: '找不到此頻道' });
 
@@ -22,11 +22,25 @@ router.get('/', auth, workspaceAuth('viewer'), async (req, res) => {
         { platformId: { $regex: search, $options: 'i' } },
       ];
     }
+    if (dateFrom || dateTo) {
+      const field = dateField === 'createdAt' ? 'createdAt' : 'lastInteractedAt';
+      query[field] = {};
+      if (dateFrom) query[field].$gte = new Date(dateFrom);
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        query[field].$lte = end;
+      }
+    }
+
+    const allowedSortFields = { displayName: 1, platform: 1, createdAt: 1, lastInteractedAt: 1 };
+    const sortField = allowedSortFields[sortBy] !== undefined ? sortBy : 'lastInteractedAt';
+    const sortOrder = sortDir === 'asc' ? 1 : -1;
 
     const total = await Contact.countDocuments(query);
     const contacts = await Contact.find(query)
       .select('-conversationHistory -currentFlowState')
-      .sort('-lastInteractedAt')
+      .sort({ [sortField]: sortOrder })
       .skip((page - 1) * limit)
       .limit(Number(limit));
 
