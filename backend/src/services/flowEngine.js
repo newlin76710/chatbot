@@ -7,7 +7,7 @@
 const { Contact, Flow } = require('../models');
 const { sendLineMessage } = require('./lineService');
 const { sendMessengerMessage } = require('./messengerService');
-const { emitContactMessage } = require('./index');
+const { emitContactMessage, emitContactUpdate } = require('./index');
 
 // Entry point
 async function processMessage({ contact, flow, channel, text, postbackPayload, isResuming = false }) {
@@ -28,6 +28,10 @@ async function processMessage({ contact, flow, channel, text, postbackPayload, i
         // 同步更新記憶體中的值，供本次執行後續節點使用
         if (!contact.customFields) contact.customFields = new Map();
         contact.customFields.set(field, text);
+        // 即時推送自訂欄位變更到前端
+        const cfPlain = {};
+        contact.customFields.forEach((v, k) => { cfPlain[k] = v; });
+        emitContactUpdate(channel._id, contact._id, { customFields: cfPlain });
       } else if (!field) {
         console.warn(`[FlowEngine] ⚠️ input 節點缺少 inputField 設定，回覆未儲存！nodeId: ${inputNodeId}`);
       }
@@ -135,29 +139,28 @@ async function executeMessageNode(node, context) {
   const { messages } = node.data;
   if (!messages?.length) return;
 
-  const renderedMessages = [];
   for (const msg of messages) {
     const rendered = renderTemplate(msg, context);
-    renderedMessages.push(rendered);
     if (channel.platform === 'line') {
       await sendLineMessage(channel, contact.platformId, rendered);
     } else if (channel.platform === 'messenger' || channel.platform === 'instagram') {
       await sendMessengerMessage(channel, contact.platformId, rendered);
     }
     if (messages.length > 1) await sleep(500);
-  }
 
-  const botMsg = {
-    role: 'bot',
-    content: renderedMessages.map(m => m.text || '[media]').join(' | '),
-    messageType: renderedMessages[0]?.type || 'text',
-    timestamp: new Date(),
-  };
-  contact.conversationHistory.push(botMsg);
+    const content = rendered.text || rendered.imageUrl || rendered.videoUrl || '[media]';
+    const botMsg = {
+      role: 'bot',
+      content,
+      messageType: rendered.type || 'text',
+      timestamp: new Date(),
+    };
+    contact.conversationHistory.push(botMsg);
+    emitContactMessage(channel._id, contact._id, botMsg);
+  }
   if (contact.conversationHistory.length > 100) {
     contact.conversationHistory = contact.conversationHistory.slice(-50);
   }
-  emitContactMessage(channel._id, contact._id, botMsg);
 }
 
 async function executeConditionNode(node, context, depth) {
@@ -234,6 +237,7 @@ async function executeActionNode(node, context) {
       }
       case 'unsubscribe':
         contact.isFollowing = false;
+        emitContactUpdate(context.channel._id, contact._id, { isFollowing: false });
         break;
       case 'triggerFlow':
         if (action.flowId) {
@@ -261,6 +265,14 @@ async function executeActionNode(node, context) {
         break;
     }
   }
+
+  // 一次性推送標籤與自訂欄位變更
+  const customFieldsPlain = {};
+  if (contact.customFields) contact.customFields.forEach((v, k) => { customFieldsPlain[k] = v; });
+  emitContactUpdate(context.channel._id, contact._id, {
+    tags: contact.tags,
+    customFields: customFieldsPlain,
+  });
 }
 
 async function executeInputNode(node, context) {

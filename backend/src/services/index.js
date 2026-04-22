@@ -429,6 +429,12 @@ function emitContactMessage(channelId, contactId, message) {
   }
 }
 
+function emitContactUpdate(channelId, contactId, patch) {
+  if (_io) {
+    _io.to(`channel:${channelId}`).emit('contact:update', { contactId: String(contactId), patch });
+  }
+}
+
 // ============================================================
 // Helper
 // ============================================================
@@ -445,4 +451,5 @@ module.exports = {
   startScheduler,
   setupSocketHandlers,
   emitContactMessage,
+  emitContactUpdate,
 };

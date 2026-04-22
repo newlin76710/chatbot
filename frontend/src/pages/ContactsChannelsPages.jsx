@@ -93,6 +93,19 @@ export function ContactsPage() {
           : c
       ));
     });
+
+    socket.on('contact:update', ({ contactId, patch }) => {
+      const cur = selectedRef.current;
+      if (cur && String(cur._id) === String(contactId)) {
+        setSelected(prev => ({ ...prev, ...patch }));
+      }
+      // 若標籤有更新，同步列表
+      if (patch.tags) {
+        setContacts(prev => prev.map(c =>
+          String(c._id) === String(contactId) ? { ...c, tags: patch.tags } : c
+        ));
+      }
+    });
     return () => {
       socket.emit('leave:channel', activeChannelId);
       socket.disconnect();
@@ -482,22 +495,39 @@ export function ContactsPage() {
                     </div>
                   ) : (
                     <>
-                      {selected.conversationHistory.map((msg, i) => (
-                        <div key={i} style={{ display: 'flex', flexDirection: msg.role === 'user' ? 'row' : 'row-reverse', gap: 6, alignItems: 'flex-end' }}>
-                          <div style={{
-                            maxWidth: '80%', padding: '7px 11px',
-                            borderRadius: msg.role === 'user' ? '14px 14px 14px 3px' : '14px 14px 3px 14px',
-                            background: msg.role === 'user' ? '#F1F5F9' : '#6366F1',
-                            color: msg.role === 'user' ? '#0F172A' : '#fff',
-                            fontSize: 12, lineHeight: 1.55, wordBreak: 'break-word', whiteSpace: 'pre-wrap',
-                          }}>
-                            {msg.content}
+                      {selected.conversationHistory.map((msg, i) => {
+                        const isUser = msg.role === 'user';
+                        const isImage = msg.messageType === 'image';
+                        const isVideo = msg.messageType === 'video';
+                        const isMedia = isImage || isVideo;
+                        return (
+                          <div key={i} style={{ display: 'flex', flexDirection: isUser ? 'row' : 'row-reverse', gap: 6, alignItems: 'flex-end' }}>
+                            <div style={{
+                              maxWidth: '80%',
+                              padding: isMedia ? 0 : '7px 11px',
+                              borderRadius: isUser ? '14px 14px 14px 3px' : '14px 14px 3px 14px',
+                              background: isMedia ? 'transparent' : (isUser ? '#F1F5F9' : '#6366F1'),
+                              color: isUser ? '#0F172A' : '#fff',
+                              fontSize: 12, lineHeight: 1.55, wordBreak: 'break-word', whiteSpace: 'pre-wrap',
+                              overflow: 'hidden',
+                            }}>
+                              {isImage ? (
+                                <img src={msg.content} alt="圖片" style={{ display: 'block', maxWidth: 200, maxHeight: 200, borderRadius: isUser ? '14px 14px 14px 3px' : '14px 14px 3px 14px', objectFit: 'cover' }} />
+                              ) : isVideo ? (
+                                <a href={msg.content} target="_blank" rel="noopener noreferrer"
+                                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 11px', borderRadius: 'inherit', background: isUser ? '#F1F5F9' : '#6366F1', color: isUser ? '#0F172A' : '#fff', textDecoration: 'none', fontSize: 12 }}>
+                                  ▶ 影片
+                                </a>
+                              ) : (
+                                msg.content
+                              )}
+                            </div>
+                            <div style={{ fontSize: 10, color: '#CBD5E1', flexShrink: 0, paddingBottom: 2 }}>
+                              {msg.timestamp ? format(new Date(msg.timestamp), 'MM/dd HH:mm') : ''}
+                            </div>
                           </div>
-                          <div style={{ fontSize: 10, color: '#CBD5E1', flexShrink: 0, paddingBottom: 2 }}>
-                            {msg.timestamp ? format(new Date(msg.timestamp), 'MM/dd HH:mm') : ''}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                       <div ref={historyBottomRef} />
                     </>
                   )}
