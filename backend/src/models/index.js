@@ -100,6 +100,8 @@ const contactSchema = new mongoose.Schema({
     variables: { type: Map, of: mongoose.Schema.Types.Mixed },
     inputTimeoutAt: Date,
     reminderSent: Boolean,
+    afterReminderAction: { type: String, enum: ['wait', 'end', 'skip'], default: 'wait' },
+    skipTimeoutAt: Date,
   },
 }, { timestamps: true });
 

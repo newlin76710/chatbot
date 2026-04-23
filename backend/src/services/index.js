@@ -366,38 +366,78 @@ async function checkInputTimeouts() {
   const { Contact, Flow } = require('../models');
   const { sendLineMessage } = require('./lineService');
   const { sendMessengerMessage } = require('./messengerService');
+  const { processMessage } = require('./flowEngine');
 
   try {
     const now = new Date();
-    const contacts = await Contact.find({
+
+    // ── 第一輪：發送提醒 ──
+    const pendingReminder = await Contact.find({
       'currentFlowState.waitingForInput': true,
       'currentFlowState.inputTimeoutAt': { $lte: now },
       'currentFlowState.reminderSent': { $ne: true },
     }).populate('channel');
 
-    for (const contact of contacts) {
+    for (const contact of pendingReminder) {
       try {
         const flow = await Flow.findById(contact.currentFlowState.flowId);
         if (!flow) continue;
         const node = flow.nodes.find(n => n.id === contact.currentFlowState.nodeId);
-        const reminderText = node?.data?.inputTimeout?.reminderText;
-        if (!reminderText) continue;
+        const t = node?.data?.inputTimeout;
+        if (!t?.reminderText) continue;
 
         const channel = contact.channel;
-        const msg = { type: 'text', text: reminderText };
+        const msg = { type: 'text', text: t.reminderText };
         if (channel.platform === 'line') {
           await sendLineMessage(channel, contact.platformId, msg);
         } else if (channel.platform === 'messenger' || channel.platform === 'instagram') {
           await sendMessengerMessage(channel, contact.platformId, msg);
         }
 
-        await Contact.updateOne(
-          { _id: contact._id },
-          { $set: { 'currentFlowState.reminderSent': true } }
-        );
-        console.log(`[Scheduler] 已發送逾時提醒給 ${contact.displayName || contact.platformId}`);
+        const afterReminderAction = t.afterReminderAction || 'wait';
+        const updateOps = {
+          'currentFlowState.reminderSent': true,
+          'currentFlowState.afterReminderAction': afterReminderAction,
+        };
+        if (afterReminderAction !== 'wait') {
+          // 與第一次相同的等待時間後，執行後續動作
+          const ms = (t.unit === 'hours' ? t.value * 3600 : t.value * 60) * 1000;
+          updateOps['currentFlowState.skipTimeoutAt'] = new Date(Date.now() + ms);
+        }
+
+        await Contact.updateOne({ _id: contact._id }, { $set: updateOps });
+        console.log(`[Scheduler] 已發送逾時提醒給 ${contact.displayName || contact.platformId}，後續動作：${afterReminderAction}`);
       } catch (e) {
         console.error(`[Scheduler] 提醒失敗 contact ${contact._id}:`, e.message);
+      }
+    }
+
+    // ── 第二輪：處理提醒後仍未回覆的聯絡人 ──
+    const pendingAction = await Contact.find({
+      'currentFlowState.waitingForInput': true,
+      'currentFlowState.reminderSent': true,
+      'currentFlowState.skipTimeoutAt': { $lte: now },
+      'currentFlowState.afterReminderAction': { $in: ['end', 'skip'] },
+    }).populate('channel');
+
+    for (const contact of pendingAction) {
+      try {
+        const action = contact.currentFlowState.afterReminderAction;
+        if (action === 'end') {
+          await Contact.updateOne({ _id: contact._id }, { $set: { currentFlowState: null } });
+          console.log(`[Scheduler] 已自動結束流程 contact ${contact.displayName || contact.platformId}`);
+        } else if (action === 'skip') {
+          const flow = await Flow.findById(contact.currentFlowState.flowId);
+          if (!flow) {
+            await Contact.updateOne({ _id: contact._id }, { $set: { currentFlowState: null } });
+            continue;
+          }
+          // 以空字串繼續，變數欄位留空，流程從 input 的下一個節點繼續
+          await processMessage({ contact, flow, channel: contact.channel, text: '', isResuming: true });
+          console.log(`[Scheduler] 已自動跳過等待回覆 contact ${contact.displayName || contact.platformId}`);
+        }
+      } catch (e) {
+        console.error(`[Scheduler] 後續動作失敗 contact ${contact._id}:`, e.message);
       }
     }
   } catch (e) {

@@ -565,6 +565,20 @@ function InputConfig({ data, save }) {
               placeholder="提醒訊息內容，例如：嗨！請告訴我上面問題的答案"
               value={timeout.reminderText || ''}
               onChange={e => saveTimeout({ reminderText: e.target.value })} />
+            <div style={{ marginTop: 8 }}>
+              <label style={{ ...labelSt, marginBottom: 4 }}>提醒後仍未回覆時</label>
+              <select style={inputSt} value={timeout.afterReminderAction || 'wait'}
+                onChange={e => saveTimeout({ afterReminderAction: e.target.value })}>
+                <option value="wait">持續等待（不做額外動作）</option>
+                <option value="end">自動結束流程</option>
+                <option value="skip">自動跳過此問題，繼續流程</option>
+              </select>
+              <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>
+                {(timeout.afterReminderAction || 'wait') !== 'wait'
+                  ? `提醒後再等待相同時間（${timeout.value || 1} ${timeout.unit === 'hours' ? '小時' : '分鐘'}）仍未回覆，則執行上述動作`
+                  : '提醒送出後，流程繼續等待使用者回覆'}
+              </div>
+            </div>
           </>
         )}
       </div>

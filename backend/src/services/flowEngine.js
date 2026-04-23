@@ -289,9 +289,13 @@ async function executeInputNode(node, context) {
     const ms = (t.unit === 'hours' ? t.value * 3600 : t.value * 60) * 1000;
     contact.currentFlowState.inputTimeoutAt = new Date(Date.now() + ms);
     contact.currentFlowState.reminderSent = false;
+    contact.currentFlowState.afterReminderAction = t.afterReminderAction || 'wait';
+    contact.currentFlowState.skipTimeoutAt = undefined;
   } else {
     contact.currentFlowState.inputTimeoutAt = undefined;
     contact.currentFlowState.reminderSent = undefined;
+    contact.currentFlowState.afterReminderAction = undefined;
+    contact.currentFlowState.skipTimeoutAt = undefined;
   }
 
   await contact.save();
