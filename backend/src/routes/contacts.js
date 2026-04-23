@@ -69,6 +69,86 @@ router.get('/debug/all', auth, async (req, res) => {
   }
 });
 
+// GET /api/contacts/export — 匯出 CSV
+router.get('/export', auth, workspaceAuth('viewer'), async (req, res) => {
+  try {
+    const { channelId, tag, search, dateField, dateFrom, dateTo, sortBy = 'lastInteractedAt', sortDir = 'desc' } = req.query;
+    const channel = await Channel.findOne({ _id: channelId, workspace: req.workspace._id });
+    if (!channel) return res.status(404).json({ error: '找不到此頻道' });
+
+    const query = { channel: channelId };
+    if (tag) query.tags = tag;
+    if (search) {
+      query.$or = [
+        { displayName: { $regex: search, $options: 'i' } },
+        { platformId: { $regex: search, $options: 'i' } },
+      ];
+    }
+    if (dateFrom || dateTo) {
+      const field = dateField === 'createdAt' ? 'createdAt' : 'lastInteractedAt';
+      query[field] = {};
+      if (dateFrom) query[field].$gte = new Date(dateFrom);
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        query[field].$lte = end;
+      }
+    }
+
+    const allowedSortFields = { displayName: 1, platform: 1, createdAt: 1, lastInteractedAt: 1 };
+    const sortField = allowedSortFields[sortBy] !== undefined ? sortBy : 'lastInteractedAt';
+    const sortOrder = sortDir === 'asc' ? 1 : -1;
+
+    const contacts = await Contact.find(query)
+      .select('-conversationHistory -currentFlowState')
+      .sort({ [sortField]: sortOrder })
+      .limit(10000);
+
+    // 收集所有 customField 欄位名稱
+    const cfKeySet = new Set();
+    contacts.forEach(c => {
+      if (c.customFields) c.customFields.forEach((_, k) => cfKeySet.add(k));
+    });
+    const cfKeys = [...cfKeySet];
+
+    const FIELD_LABELS = {
+      maritalStatus: '感情狀態', city: '居住地區', birthYear: '出生年份',
+      education: '學歷', heightWeight: '身高體重', occupation: '職業',
+      phoneNumber: '手機號碼', name: '姓名', email: '電子郵件',
+      gender: '性別', age: '年齡', address: '地址', note: '備註',
+    };
+
+    const headers = ['姓名', '帳號ID', '平台', '標籤', '加入日期', '最後對話時間',
+      ...cfKeys.map(k => FIELD_LABELS[k] || k)];
+
+    const fmtDate = d => d ? new Date(d).toISOString().replace('T', ' ').slice(0, 19) : '';
+    const escape = v => {
+      const s = String(v ?? '');
+      return (s.includes(',') || s.includes('"') || s.includes('\n')) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+
+    const rows = contacts.map(c => {
+      const cf = c.customFields ? Object.fromEntries(c.customFields) : {};
+      return [
+        c.displayName || '',
+        c.platformId || '',
+        c.platform || '',
+        (c.tags || []).join('、'),
+        fmtDate(c.createdAt),
+        fmtDate(c.lastInteractedAt),
+        ...cfKeys.map(k => cf[k] ?? ''),
+      ].map(escape).join(',');
+    });
+
+    const csv = '﻿' + [headers.map(escape).join(','), ...rows].join('\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="contacts_${Date.now()}.csv"`);
+    res.send(csv);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/contacts/tags/list
 router.get('/tags/list', auth, workspaceAuth('viewer'), async (req, res) => {
   try {

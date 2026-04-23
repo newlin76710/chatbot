@@ -252,6 +252,28 @@ export function ContactsPage() {
     });
   };
 
+  const handleExportCSV = async () => {
+    try {
+      const params = new URLSearchParams({ channelId: activeChannelId });
+      if (search) params.append('search', search);
+      if (filterTag) params.append('tag', filterTag);
+      if (dateFrom) { params.append('dateField', dateField); params.append('dateFrom', dateFrom); }
+      if (dateTo) { params.append('dateField', dateField); params.append('dateTo', dateTo); }
+      params.append('sortBy', sortBy);
+      params.append('sortDir', sortDir);
+
+      const res = await api.get(`/contacts/export?${params}`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `contacts_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('匯出失敗');
+    }
+  };
+
   return (
     <div style={{ padding: 32 }}>
       <div style={{ marginBottom: 24 }}>
@@ -295,6 +317,12 @@ export function ContactsPage() {
             清除
           </button>
         )}
+        <button
+          onClick={handleExportCSV}
+          disabled={!activeChannelId}
+          style={{ padding: '8px 14px', borderRadius: 8, border: '1.5px solid #A7F3D0', background: '#F0FDF4', color: '#059669', fontSize: 13, fontWeight: 600, cursor: activeChannelId ? 'pointer' : 'not-allowed', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
+          ↓ 匯出 CSV
+        </button>
       </div>
 
       <div style={{ display: 'flex', gap: 20 }}>
