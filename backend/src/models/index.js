@@ -86,6 +86,7 @@ const contactSchema = new mongoose.Schema({
   isBlocked: { type: Boolean, default: false },
   isFollowing: { type: Boolean, default: true },
   lastInteractedAt: Date,
+  adminReadAt: Date,
   conversationHistory: [{
     role: { type: String, enum: ['user', 'bot'] },
     content: String,

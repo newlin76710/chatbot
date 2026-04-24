@@ -61,6 +61,8 @@ export function ContactsPage() {
   const [sendText, setSendText] = useState('');
   const [selectedFlowId, setSelectedFlowId] = useState('');
   const [sending, setSending] = useState(false);
+  const [newContactIds, setNewContactIds] = useState(new Set());
+  const [unreadContactIds, setUnreadContactIds] = useState(new Set());
 
   const historyBottomRef = useRef(null);
   const selectedRef = useRef(null);
@@ -85,6 +87,9 @@ export function ContactsPage() {
           ...prev,
           conversationHistory: [...(prev.conversationHistory || []), message],
         }));
+      } else if (message.role === 'user') {
+        // 使用者傳來訊息但管理員未在看此聯絡人 → 標記未讀
+        setUnreadContactIds(prev => new Set([...prev, String(contactId)]));
       }
       // 更新聯絡人列表的最近互動時間
       setContacts(prev => prev.map(c =>
@@ -92,6 +97,14 @@ export function ContactsPage() {
           ? { ...c, lastInteractedAt: message.timestamp || new Date().toISOString() }
           : c
       ));
+    });
+
+    socket.on('contact:new', ({ contact: newContact }) => {
+      setNewContactIds(prev => new Set([...prev, String(newContact._id)]));
+      setContacts(prev => {
+        const exists = prev.some(c => String(c._id) === String(newContact._id));
+        return exists ? prev : [newContact, ...prev];
+      });
     });
 
     socket.on('contact:update', ({ contactId, patch }) => {
@@ -186,6 +199,10 @@ export function ContactsPage() {
     setEditingFields(false);
     setActiveTab('data');
     setLoadingDetail(true);
+    // 清除綠點與未讀標記，標記管理員已讀
+    setNewContactIds(prev => { const s = new Set(prev); s.delete(String(c._id)); return s; });
+    setUnreadContactIds(prev => { const s = new Set(prev); s.delete(String(c._id)); return s; });
+    api.post(`/contacts/${c._id}/read`).catch(() => {});
     try {
       const { data } = await api.get(`/contacts/${c._id}`);
       setSelected(data.contact);
@@ -364,9 +381,17 @@ export function ContactsPage() {
                   style={{ borderTop: i === 0 ? 'none' : '1px solid #F1F5F9', cursor: 'pointer', background: selected?._id === c._id ? '#F8F9FF' : 'transparent' }}>
                   <td style={{ padding: '10px 14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#EEF2FF', flexShrink: 0,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#6366F1' }}>
-                        {c.displayName?.[0]?.toUpperCase() || '?'}
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#EEF2FF',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#6366F1' }}>
+                          {c.displayName?.[0]?.toUpperCase() || '?'}
+                        </div>
+                        {newContactIds.has(String(c._id)) && (
+                          <span title="新加入" style={{ position: 'absolute', bottom: 0, right: 0, width: 10, height: 10, borderRadius: '50%', background: '#22C55E', border: '2px solid #fff' }} />
+                        )}
+                        {!newContactIds.has(String(c._id)) && unreadContactIds.has(String(c._id)) && (
+                          <span title="未讀訊息" style={{ position: 'absolute', bottom: 0, right: 0, width: 10, height: 10, borderRadius: '50%', background: '#F97316', border: '2px solid #fff' }} />
+                        )}
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 500, color: '#0F172A' }}>{c.displayName || '未知'}</div>
@@ -550,7 +575,7 @@ export function ContactsPage() {
                     <div style={{ margin: 'auto', textAlign: 'center' }}>
                       <div style={{ fontSize: 32, marginBottom: 8 }}>💬</div>
                       <div style={{ fontSize: 12, color: '#94A3B8' }}>尚無對話紀錄</div>
-                      <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>使用者傳訊後將自動記錄</div>
+                      <div style={{ fontSize: 11, color: '#CBD5E1', marginTop: 2 }}>透過此平台發送的訊息將自動記錄</div>
                     </div>
                   ) : (
                     <>
@@ -559,6 +584,8 @@ export function ContactsPage() {
                         const isImage = msg.messageType === 'image';
                         const isVideo = msg.messageType === 'video';
                         const isMedia = isImage || isVideo;
+                        const isLast = i === selected.conversationHistory.length - 1;
+                        const adminHasRead = isUser && selected.adminReadAt && new Date(selected.adminReadAt) >= new Date(msg.timestamp);
                         return (
                           <div key={i} style={{ display: 'flex', flexDirection: isUser ? 'row' : 'row-reverse', gap: 6, alignItems: 'flex-end' }}>
                             <div style={{
@@ -581,8 +608,10 @@ export function ContactsPage() {
                                 msg.content
                               )}
                             </div>
-                            <div style={{ fontSize: 10, color: '#CBD5E1', flexShrink: 0, paddingBottom: 2 }}>
-                              {msg.timestamp ? format(new Date(msg.timestamp), 'MM/dd HH:mm') : ''}
+                            <div style={{ fontSize: 10, color: '#CBD5E1', flexShrink: 0, paddingBottom: 2, display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-start' : 'flex-end', gap: 2 }}>
+                              <span>{msg.timestamp ? format(new Date(msg.timestamp), 'MM/dd HH:mm') : ''}</span>
+                              {!isUser && isLast && <span style={{ color: '#A5B4FC' }}>已送出</span>}
+                              {isUser && adminHasRead && isLast && <span style={{ color: '#94A3B8' }}>已讀</span>}
                             </div>
                           </div>
                         );

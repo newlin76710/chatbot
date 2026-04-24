@@ -4,7 +4,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const workspaceAuth = require('../middleware/workspaceAuth');
 const { Contact, Channel, Flow } = require('../models');
-const { sendLineMessage, sendMessengerMessage } = require('../services');
+const { sendLineMessage, sendMessengerMessage, emitContactMessage } = require('../services');
 const { processMessage } = require('../services/flowEngine');
 
 // GET /api/contacts
@@ -183,6 +183,16 @@ router.get('/:id', auth, workspaceAuth('viewer'), async (req, res) => {
   }
 });
 
+// POST /api/contacts/:id/read — 標記管理員已讀
+router.post('/:id/read', auth, workspaceAuth('viewer'), async (req, res) => {
+  try {
+    await Contact.updateOne({ _id: req.params.id }, { $set: { adminReadAt: new Date() } });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // PATCH /api/contacts/:id/fields
 router.patch('/:id/fields', auth, workspaceAuth('editor'), async (req, res) => {
   try {
@@ -237,32 +247,40 @@ router.post('/:id/send', auth, workspaceAuth('editor'), async (req, res) => {
     if (!contact) return res.status(404).json({ error: '找不到此聯絡人' });
 
     const channel = contact.channel;
-    const msg = { type: 'text', text: text.trim() };
 
-    if (channel.platform === 'line') {
-      await sendLineMessage(channel, contact.platformId, msg);
-    } else if (channel.platform === 'messenger' || channel.platform === 'instagram') {
-      await sendMessengerMessage(channel, contact.platformId, msg);
-    } else {
-      return res.status(400).json({ error: `不支援的平台：${channel.platform}` });
+    if (!contact.isFollowing) {
+      return res.status(400).json({ error: '此聯絡人已封鎖或取消追蹤，無法傳送訊息' });
     }
 
+    const msg = { type: 'text', text: text.trim() };
+
+    try {
+      if (channel.platform === 'line') {
+        await sendLineMessage(channel, contact.platformId, msg);
+      } else if (channel.platform === 'messenger' || channel.platform === 'instagram') {
+        await sendMessengerMessage(channel, contact.platformId, msg);
+      } else {
+        return res.status(400).json({ error: `不支援的平台：${channel.platform}` });
+      }
+    } catch (apiErr) {
+      const lineErr = apiErr.response?.data;
+      const errMsg = lineErr?.message || apiErr.message;
+      const details = lineErr?.details?.map(d => d.message).join('；') || '';
+      console.error('[傳訊息] LINE API 錯誤:', lineErr || apiErr.message);
+      return res.status(502).json({ error: `訊息發送失敗：${errMsg}${details ? `（${details}）` : ''}` });
+    }
+
+    const newMsg = { role: 'bot', content: text.trim(), messageType: 'text', timestamp: new Date() };
     await Contact.updateOne(
       { _id: contact._id },
-      {
-        $push: {
-          conversationHistory: {
-            $each: [{ role: 'bot', content: text.trim(), messageType: 'text', timestamp: new Date() }],
-            $slice: -100,
-          },
-        },
-      }
+      { $push: { conversationHistory: { $each: [newMsg], $slice: -100 } } }
     );
+    emitContactMessage(channel._id, contact._id, newMsg);
 
     res.json({ ok: true });
   } catch (err) {
-    console.error('[傳訊息]', err.response?.data || err.message);
-    res.status(500).json({ error: err.response?.data?.message || err.message });
+    console.error('[傳訊息]', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

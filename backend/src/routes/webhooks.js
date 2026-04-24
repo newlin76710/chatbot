@@ -3,7 +3,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const { Channel, Contact, Flow, Campaign } = require('../models');
 const { processMessage } = require('../services/flowEngine');
-const { emitContactMessage } = require('../services');
+const { emitContactMessage, emitContactNew } = require('../services');
 
 // ─── LINE Webhook ─────────────────────────────────────────────
 router.post('/line/:channelId', async (req, res) => {
@@ -41,6 +41,9 @@ async function handleLineEvent(event, channel) {
   if (!platformId) return;
 
   // Upsert contact
+  const existingContact = await Contact.findOne({ platformId, channel: channel._id, platform: 'line' });
+  const isNewContact = !existingContact;
+
   let contact = await Contact.findOneAndUpdate(
     { platformId, channel: channel._id, platform: 'line' },
     {
@@ -62,6 +65,11 @@ async function handleLineEvent(event, channel) {
       contact.language = profile.data.language;
       await contact.save();
     } catch (_) {}
+  }
+
+  // 通知前端有新聯絡人加入
+  if (isNewContact || type === 'follow') {
+    emitContactNew(channel._id, contact);
   }
 
   // Determine trigger context

@@ -249,54 +249,84 @@ async function sendBroadcastNow(broadcast, contacts, channelArg) {
 
   console.log(`[廣播] LINE 用戶: ${lineIds.length}，Messenger 用戶: ${messengerIds.length}，Instagram 用戶: ${instagramIds.length}`);
 
+  // 將廣播訊息轉為 conversationHistory 格式
+  const broadcastHistoryEntries = broadcast.messages.map(msg => ({
+    role: 'bot',
+    content: msg.text || `[${msg.type}]`,
+    messageType: msg.type === 'text' ? 'text' : (msg.imageUrl ? 'image' : msg.type),
+    timestamp: new Date(),
+  }));
+
+  const saveBroadcastHistory = async (platformIds) => {
+    if (!platformIds.length) return;
+    try {
+      await Contact.updateMany(
+        { channel: channel._id, platformId: { $in: platformIds } },
+        { $push: { conversationHistory: { $each: broadcastHistoryEntries, $slice: -100 } } }
+      );
+    } catch (e) {
+      console.error('[廣播] 寫入對話紀錄失敗:', e.message);
+    }
+  };
+
   if (lineIds.length > 0 && channel.platform === 'line') {
     try {
       await sendLineMulticast(channel, lineIds, broadcast.messages);
       sent += lineIds.length;
       console.log(`[廣播] LINE multicast 成功，送出: ${lineIds.length}`);
+      await saveBroadcastHistory(lineIds);
     } catch (e) {
       console.error('[廣播] LINE multicast 失敗:', e.response?.data || e.message);
       // multicast 失敗時改用逐一 push
       console.log('[廣播] 改用逐一 push...');
+      const successIds = [];
       for (const userId of lineIds) {
         try {
           for (const msg of broadcast.messages) {
             await sendLineMessage(channel, userId, msg);
           }
           sent++;
+          successIds.push(userId);
         } catch (e2) {
           console.error(`[廣播] push 失敗 (${userId}):`, e2.response?.data || e2.message);
           failed++;
         }
       }
+      await saveBroadcastHistory(successIds);
     }
   }
 
   if (messengerIds.length > 0 && channel.platform === 'messenger') {
+    const successIds = [];
     for (const id of messengerIds) {
       try {
         for (const msg of broadcast.messages) {
           await sendMessengerMessage(channel, id, msg);
         }
         sent++;
+        successIds.push(id);
       } catch (e) {
         failed++;
       }
     }
+    await saveBroadcastHistory(successIds);
   }
 
   if (instagramIds.length > 0 && channel.platform === 'instagram') {
+    const successIds = [];
     for (const id of instagramIds) {
       try {
         for (const msg of broadcast.messages) {
           await sendMessengerMessage(channel, id, msg);
         }
         sent++;
+        successIds.push(id);
       } catch (e) {
         console.error(`[廣播] Instagram 發送失敗 (${id}):`, e.response?.data || e.message);
         failed++;
       }
     }
+    await saveBroadcastHistory(successIds);
   }
 
   console.log(`[廣播] 更新 stats — sent:${sent} failed:${failed} total:${contacts.length} id:${broadcast._id}`);
@@ -475,6 +505,12 @@ function emitContactUpdate(channelId, contactId, patch) {
   }
 }
 
+function emitContactNew(channelId, contact) {
+  if (_io) {
+    _io.to(`channel:${channelId}`).emit('contact:new', { contact });
+  }
+}
+
 // ============================================================
 // Helper
 // ============================================================
@@ -492,4 +528,5 @@ module.exports = {
   setupSocketHandlers,
   emitContactMessage,
   emitContactUpdate,
+  emitContactNew,
 };
