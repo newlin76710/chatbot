@@ -284,6 +284,36 @@ router.post('/:id/send', auth, workspaceAuth('editor'), async (req, res) => {
   }
 });
 
+// POST /api/contacts/:id/history — 手動補充對話紀錄
+router.post('/:id/history', auth, workspaceAuth('editor'), async (req, res) => {
+  try {
+    const { role, content, timestamp } = req.body;
+    if (!content?.trim()) return res.status(400).json({ error: '內容不可空白' });
+    if (!['user', 'bot'].includes(role)) return res.status(400).json({ error: '角色必須為 user 或 bot' });
+
+    const contact = await Contact.findById(req.params.id).populate('channel');
+    if (!contact) return res.status(404).json({ error: '找不到此聯絡人' });
+    if (!contact.channel?.workspace?.equals(req.workspace._id))
+      return res.status(403).json({ error: 'Forbidden' });
+
+    const newMsg = {
+      role,
+      content: content.trim(),
+      messageType: 'text',
+      timestamp: timestamp ? new Date(timestamp) : new Date(),
+      isManual: true,
+    };
+    await Contact.updateOne(
+      { _id: contact._id },
+      { $push: { conversationHistory: { $each: [newMsg], $slice: -100 } } }
+    );
+    emitContactMessage(contact.channel._id, contact._id, newMsg);
+    res.json({ ok: true, message: newMsg });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /api/contacts/:id — 刪除聯絡人
 router.delete('/:id', auth, workspaceAuth('editor'), async (req, res) => {
   try {

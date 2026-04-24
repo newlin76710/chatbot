@@ -63,6 +63,11 @@ export function ContactsPage() {
   const [sending, setSending] = useState(false);
   const [newContactIds, setNewContactIds] = useState(new Set());
   const [unreadContactIds, setUnreadContactIds] = useState(new Set());
+  const [showManual, setShowManual] = useState(false);
+  const [manualRole, setManualRole] = useState('bot');
+  const [manualText, setManualText] = useState('');
+  const [manualTime, setManualTime] = useState('');
+  const [savingManual, setSavingManual] = useState(false);
 
   const historyBottomRef = useRef(null);
   const selectedRef = useRef(null);
@@ -157,6 +162,29 @@ export function ContactsPage() {
       toast.error(err.response?.data?.error || '傳送失敗');
     }
     setSending(false);
+  };
+
+  const handleSaveManual = async () => {
+    if (!manualText.trim() || !selected) return;
+    setSavingManual(true);
+    try {
+      const { data } = await api.post(`/contacts/${selected._id}/history`, {
+        role: manualRole,
+        content: manualText.trim(),
+        timestamp: manualTime || undefined,
+      });
+      setSelected(prev => ({
+        ...prev,
+        conversationHistory: [...(prev.conversationHistory || []), data.message],
+      }));
+      setManualText('');
+      setManualTime('');
+      setShowManual(false);
+      toast.success('補充紀錄已儲存');
+    } catch (err) {
+      toast.error(err.response?.data?.error || '儲存失敗');
+    }
+    setSavingManual(false);
   };
 
   const handleTriggerFlow = async () => {
@@ -586,6 +614,7 @@ export function ContactsPage() {
                         const isMedia = isImage || isVideo;
                         const isLast = i === selected.conversationHistory.length - 1;
                         const adminHasRead = isUser && selected.adminReadAt && new Date(selected.adminReadAt) >= new Date(msg.timestamp);
+                        const isManual = msg.isManual;
                         return (
                           <div key={i} style={{ display: 'flex', flexDirection: isUser ? 'row' : 'row-reverse', gap: 6, alignItems: 'flex-end' }}>
                             <div style={{
@@ -610,7 +639,8 @@ export function ContactsPage() {
                             </div>
                             <div style={{ fontSize: 10, color: '#CBD5E1', flexShrink: 0, paddingBottom: 2, display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-start' : 'flex-end', gap: 2 }}>
                               <span>{msg.timestamp ? format(new Date(msg.timestamp), 'MM/dd HH:mm') : ''}</span>
-                              {!isUser && isLast && <span style={{ color: '#A5B4FC' }}>已送出</span>}
+                              {isManual && <span style={{ color: '#F59E0B' }}>補充紀錄</span>}
+                              {!isUser && !isManual && isLast && <span style={{ color: '#A5B4FC' }}>已送出</span>}
                               {isUser && adminHasRead && isLast && <span style={{ color: '#94A3B8' }}>已讀</span>}
                             </div>
                           </div>
@@ -640,7 +670,7 @@ export function ContactsPage() {
                       {sending ? '…' : '發送'}
                     </button>
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: showManual ? 8 : 0 }}>
                     <select value={selectedFlowId} onChange={e => setSelectedFlowId(e.target.value)} style={{
                       flex: 1, padding: '6px 8px', borderRadius: 7, border: '1px solid #E2E8F0',
                       fontSize: 11, outline: 'none', color: selectedFlowId ? '#0F172A' : '#94A3B8', background: '#fff',
@@ -658,7 +688,53 @@ export function ContactsPage() {
                     }}>
                       執行腳本
                     </button>
+                    <button onClick={() => { setShowManual(v => !v); setManualText(''); setManualTime(''); }} style={{
+                      padding: '6px 10px', borderRadius: 7, border: '1px solid',
+                      background: showManual ? '#EEF2FF' : '#F8F9FC',
+                      borderColor: showManual ? '#A5B4FC' : '#E2E8F0',
+                      color: showManual ? '#6366F1' : '#94A3B8',
+                      fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0, cursor: 'pointer',
+                    }}>
+                      補充紀錄
+                    </button>
                   </div>
+
+                  {/* 補充紀錄展開區 */}
+                  {showManual && (
+                    <div style={{ background: '#F8F9FF', border: '1px solid #E0E7FF', borderRadius: 8, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+                      <div style={{ fontSize: 11, color: '#6366F1', fontWeight: 600, marginBottom: 2 }}>補充對話紀錄（不會實際發訊）</div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <select value={manualRole} onChange={e => setManualRole(e.target.value)} style={{
+                          padding: '5px 8px', borderRadius: 6, border: '1px solid #E0E7FF', fontSize: 11, outline: 'none', background: '#fff', color: '#374151', flexShrink: 0,
+                        }}>
+                          <option value="bot">管理員說</option>
+                          <option value="user">對方說</option>
+                        </select>
+                        <input
+                          type="datetime-local"
+                          value={manualTime}
+                          onChange={e => setManualTime(e.target.value)}
+                          style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid #E0E7FF', fontSize: 11, outline: 'none', background: '#fff', color: '#374151', flex: 1 }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <input
+                          value={manualText}
+                          onChange={e => setManualText(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { handleSaveManual(); e.preventDefault(); } }}
+                          placeholder="輸入訊息內容..."
+                          style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #E0E7FF', fontSize: 12, outline: 'none', background: '#fff' }}
+                        />
+                        <button onClick={handleSaveManual} disabled={savingManual || !manualText.trim()} style={{
+                          padding: '6px 14px', borderRadius: 6, border: 'none',
+                          background: manualText.trim() ? '#6366F1' : '#E2E8F0',
+                          color: '#fff', fontSize: 11, fontWeight: 600, cursor: manualText.trim() ? 'pointer' : 'not-allowed', flexShrink: 0,
+                        }}>
+                          {savingManual ? '…' : '儲存'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

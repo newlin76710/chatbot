@@ -92,6 +92,7 @@ const contactSchema = new mongoose.Schema({
     content: String,
     timestamp: { type: Date, default: Date.now },
     messageType: { type: String, default: 'text' },
+    isManual: { type: Boolean, default: false },
   }],
   currentFlowState: {
     flowId: { type: mongoose.Schema.Types.ObjectId, ref: 'Flow' },
