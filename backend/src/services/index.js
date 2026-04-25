@@ -416,7 +416,12 @@ async function checkInputTimeouts() {
         const t = node?.data?.inputTimeout;
         if (!t) continue;
 
-        // 有設定提醒訊息才發送，沒有則靜默處理（但仍繼續後續動作）
+        const afterReminderAction = t.afterReminderAction || 'wait';
+
+        // 沒有提醒訊息且後續動作為「持續等待」→ 什麼都不做，跳過
+        if (!t.reminderText && afterReminderAction === 'wait') continue;
+
+        // 有設定提醒訊息才發送
         if (t.reminderText) {
           const channel = contact.channel;
           const msg = { type: 'text', text: t.reminderText };
@@ -427,7 +432,6 @@ async function checkInputTimeouts() {
           }
         }
 
-        const afterReminderAction = t.afterReminderAction || 'wait';
         const updateOps = {
           'currentFlowState.reminderSent': true,
           'currentFlowState.afterReminderAction': afterReminderAction,
