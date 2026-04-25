@@ -182,6 +182,7 @@ const nodeSchema = new mongoose.Schema({
       value: Number,
       unit: { type: String, enum: ['minutes', 'hours'] },
       reminderText: String,
+      afterReminderAction: { type: String, enum: ['wait', 'end', 'skip'], default: 'wait' },
     },
     // For jump node
     jumpToNodeId: String,

@@ -414,14 +414,17 @@ async function checkInputTimeouts() {
         if (!flow) continue;
         const node = flow.nodes.find(n => n.id === contact.currentFlowState.nodeId);
         const t = node?.data?.inputTimeout;
-        if (!t?.reminderText) continue;
+        if (!t) continue;
 
-        const channel = contact.channel;
-        const msg = { type: 'text', text: t.reminderText };
-        if (channel.platform === 'line') {
-          await sendLineMessage(channel, contact.platformId, msg);
-        } else if (channel.platform === 'messenger' || channel.platform === 'instagram') {
-          await sendMessengerMessage(channel, contact.platformId, msg);
+        // 有設定提醒訊息才發送，沒有則靜默處理（但仍繼續後續動作）
+        if (t.reminderText) {
+          const channel = contact.channel;
+          const msg = { type: 'text', text: t.reminderText };
+          if (channel.platform === 'line') {
+            await sendLineMessage(channel, contact.platformId, msg);
+          } else if (channel.platform === 'messenger' || channel.platform === 'instagram') {
+            await sendMessengerMessage(channel, contact.platformId, msg);
+          }
         }
 
         const afterReminderAction = t.afterReminderAction || 'wait';
@@ -436,7 +439,7 @@ async function checkInputTimeouts() {
         }
 
         await Contact.updateOne({ _id: contact._id }, { $set: updateOps });
-        console.log(`[Scheduler] 已發送逾時提醒給 ${contact.displayName || contact.platformId}，後續動作：${afterReminderAction}`);
+        console.log(`[Scheduler] 已處理逾時提醒 ${contact.displayName || contact.platformId}，後續動作：${afterReminderAction}`);
       } catch (e) {
         console.error(`[Scheduler] 提醒失敗 contact ${contact._id}:`, e.message);
       }
