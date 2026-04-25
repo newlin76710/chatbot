@@ -287,18 +287,23 @@ async function executeInputNode(node, context) {
   const t = node.data.inputTimeout;
   if (t?.enabled && t?.value) {
     const ms = (t.unit === 'hours' ? t.value * 3600 : t.value * 60) * 1000;
-    contact.currentFlowState.inputTimeoutAt = new Date(Date.now() + ms);
+    const timeoutAt = new Date(Date.now() + ms);
+    contact.currentFlowState.inputTimeoutAt = timeoutAt;
     contact.currentFlowState.reminderSent = false;
     contact.currentFlowState.afterReminderAction = t.afterReminderAction || 'wait';
-    contact.currentFlowState.skipTimeoutAt = undefined;
+    contact.currentFlowState.skipTimeoutAt = null;
+    console.log(`[FlowEngine] input timeout 已設定：${t.value} ${t.unit}，到期時間 ${timeoutAt.toISOString()}，afterReminderAction: ${t.afterReminderAction || 'wait'}，reminderText: "${t.reminderText || '(未設定)'}"`);
   } else {
-    contact.currentFlowState.inputTimeoutAt = undefined;
-    contact.currentFlowState.reminderSent = undefined;
-    contact.currentFlowState.afterReminderAction = undefined;
-    contact.currentFlowState.skipTimeoutAt = undefined;
+    contact.currentFlowState.inputTimeoutAt = null;
+    contact.currentFlowState.reminderSent = null;
+    contact.currentFlowState.afterReminderAction = null;
+    contact.currentFlowState.skipTimeoutAt = null;
+    if (t) console.log(`[FlowEngine] input timeout 未啟用（enabled=${t?.enabled}, value=${t?.value}）`);
   }
 
+  contact.markModified('currentFlowState');
   await contact.save();
+  console.log(`[FlowEngine] contact ${contact._id} 已儲存，waitingForInput=${contact.currentFlowState.waitingForInput}, inputTimeoutAt=${contact.currentFlowState.inputTimeoutAt}`);
 }
 
 async function executeDelayNode(node, context) {
