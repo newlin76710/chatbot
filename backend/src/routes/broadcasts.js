@@ -38,13 +38,14 @@ router.get('/:id', auth, workspaceAuth('viewer'), async (req, res) => {
 // POST /api/broadcasts
 router.post('/', auth, workspaceAuth('editor'), async (req, res) => {
   try {
-    const { name, channelId, audience, messages, scheduledAt } = req.body;
+    const { name, channelId, audience, excludeAudience, messages, scheduledAt } = req.body;
     const broadcast = await Broadcast.create({
       name, messages,
       channel: channelId,
       workspace: req.workspace._id,
       ownedBy: req.user._id,
       audience: audience || { type: 'all' },
+      excludeAudience: excludeAudience || { segments: [], tags: [] },
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       status: scheduledAt ? 'scheduled' : 'draft',
     });
@@ -62,10 +63,10 @@ router.post('/', auth, workspaceAuth('editor'), async (req, res) => {
 // PUT /api/broadcasts/:id
 router.put('/:id', auth, workspaceAuth('editor'), async (req, res) => {
   try {
-    const { name, audience, messages, scheduledAt } = req.body;
+    const { name, audience, excludeAudience, messages, scheduledAt } = req.body;
     const broadcast = await Broadcast.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id, status: { $in: ['draft', 'scheduled'] } },
-      { name, audience, messages, scheduledAt, status: scheduledAt ? 'scheduled' : 'draft' },
+      { name, audience, excludeAudience, messages, scheduledAt, status: scheduledAt ? 'scheduled' : 'draft' },
       { new: true }
     );
     if (!broadcast) return res.status(404).json({ error: '找不到此廣播或無法編輯' });
@@ -118,6 +119,28 @@ router.post('/:id/cancel', auth, workspaceAuth('editor'), async (req, res) => {
   }
 });
 
+// POST /api/broadcasts/:id/duplicate
+router.post('/:id/duplicate', auth, workspaceAuth('editor'), async (req, res) => {
+  try {
+    const original = await Broadcast.findOne({ _id: req.params.id, workspace: req.workspace._id });
+    if (!original) return res.status(404).json({ error: '找不到此廣播' });
+
+    const copy = await Broadcast.create({
+      name: `[複製] ${original.name}`,
+      channel: original.channel,
+      workspace: req.workspace._id,
+      ownedBy: req.user._id,
+      audience: original.audience,
+      excludeAudience: original.excludeAudience,
+      messages: original.messages,
+      status: 'draft',
+    });
+    res.status(201).json({ broadcast: copy });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /api/broadcasts/:id
 router.delete('/:id', auth, workspaceAuth('editor'), async (req, res) => {
   try {
@@ -137,9 +160,11 @@ async function resolveAudience(broadcast) {
   const { type, segments, tags, contacts: contactIds } = broadcast.audience;
   const baseQuery = { channel: broadcast.channel._id, isFollowing: true, isBlocked: { $ne: true } };
 
+  let contacts;
   switch (type) {
     case 'all':
-      return Contact.find(baseQuery).select('_id platformId platform');
+      contacts = await Contact.find(baseQuery).select('_id platformId platform');
+      break;
     case 'segments': {
       const segs = await Segment.find({ _id: { $in: segments } });
       const contactSets = await Promise.all(segs.map(s =>
@@ -148,15 +173,43 @@ async function resolveAudience(broadcast) {
       ));
       const unique = new Map();
       contactSets.flat().forEach(c => unique.set(c._id.toString(), c));
-      return [...unique.values()];
+      contacts = [...unique.values()];
+      break;
     }
     case 'tags':
-      return Contact.find({ ...baseQuery, tags: { $in: tags } }).select('_id platformId platform');
+      contacts = await Contact.find({ ...baseQuery, tags: { $in: tags } }).select('_id platformId platform');
+      break;
     case 'contacts':
-      return Contact.find({ ...baseQuery, _id: { $in: contactIds } }).select('_id platformId platform');
+      contacts = await Contact.find({ ...baseQuery, _id: { $in: contactIds } }).select('_id platformId platform');
+      break;
     default:
-      return [];
+      contacts = [];
   }
+
+  const excludedIds = await resolveExcludeIds(broadcast, baseQuery);
+  if (excludedIds.size > 0) {
+    contacts = contacts.filter(c => !excludedIds.has(c._id.toString()));
+  }
+  return contacts;
+}
+
+async function resolveExcludeIds(broadcast, baseQuery) {
+  const { segments: exSegs = [], tags: exTags = [] } = broadcast.excludeAudience || {};
+  const excluded = new Set();
+
+  if (exTags.length > 0) {
+    const byTags = await Contact.find({ ...baseQuery, tags: { $in: exTags } }).select('_id');
+    byTags.forEach(c => excluded.add(c._id.toString()));
+  }
+  if (exSegs.length > 0) {
+    const segs = await Segment.find({ _id: { $in: exSegs } });
+    const contactSets = await Promise.all(segs.map(s =>
+      Contact.find({ ...baseQuery, ...(s.type === 'static' ? { _id: { $in: s.contacts } } : buildDynQuery(s)) })
+        .select('_id')
+    ));
+    contactSets.flat().forEach(c => excluded.add(c._id.toString()));
+  }
+  return excluded;
 }
 
 function buildDynQuery(segment) {

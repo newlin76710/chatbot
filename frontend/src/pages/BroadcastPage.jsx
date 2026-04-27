@@ -31,10 +31,20 @@ export default function BroadcastPage() {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [segments, setSegments] = useState([]);
+  const [showExclude, setShowExclude] = useState(false);
   const [form, setForm] = useState(defaultForm());
 
   function defaultForm() {
-    return { name: '', audienceType: 'all', audienceSegments: [], audienceTags: '', messages: [{ type: 'text', text: '' }], scheduledAt: '' };
+    return {
+      name: '',
+      audienceType: 'all',
+      audienceSegments: [],
+      audienceTags: '',
+      excludeSegments: [],
+      excludeTags: '',
+      messages: [{ type: 'text', text: '' }],
+      scheduledAt: '',
+    };
   }
 
   useEffect(() => {
@@ -57,6 +67,10 @@ export default function BroadcastPage() {
           segments: form.audienceSegments,
           tags: form.audienceTags.split(',').map(t => t.trim()).filter(Boolean),
         },
+        excludeAudience: {
+          segments: form.excludeSegments,
+          tags: form.excludeTags.split(',').map(t => t.trim()).filter(Boolean),
+        },
         messages: form.messages.filter(m => m.text || m.imageUrl || m.videoUrl),
         scheduledAt: form.scheduledAt || null,
       };
@@ -67,9 +81,7 @@ export default function BroadcastPage() {
         await api.post('/broadcasts', payload);
         toast.success('廣播已建立');
       }
-      setShowForm(false);
-      setEditId(null);
-      setForm(defaultForm());
+      closeForm();
       fetchBroadcasts();
     } catch (err) {
       toast.error(err.response?.data?.error || '儲存失敗');
@@ -103,17 +115,47 @@ export default function BroadcastPage() {
     }
   };
 
+  const handleDuplicate = async (id) => {
+    try {
+      const { data } = await api.post(`/broadcasts/${id}/duplicate`);
+      toast.success(`已複製為草稿：${data.broadcast.name}`);
+      fetchBroadcasts();
+    } catch (err) {
+      toast.error('複製失敗');
+    }
+  };
+
   const openEdit = (b) => {
+    const hasExclude = (b.excludeAudience?.segments?.length > 0) || (b.excludeAudience?.tags?.length > 0);
+    setShowExclude(hasExclude);
     setEditId(b._id);
     setForm({
       name: b.name,
       audienceType: b.audience.type,
       audienceSegments: b.audience.segments?.map(s => s._id || s) || [],
       audienceTags: b.audience.tags?.join(', ') || '',
+      excludeSegments: b.excludeAudience?.segments?.map(s => s._id || s) || [],
+      excludeTags: b.excludeAudience?.tags?.join(', ') || '',
       messages: b.messages,
       scheduledAt: b.scheduledAt ? b.scheduledAt.slice(0, 16) : '',
     });
     setShowForm(true);
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditId(null);
+    setShowExclude(false);
+    setForm(defaultForm());
+  };
+
+  const audienceLabel = (b) => {
+    const mainLabel = b.audience?.type === 'all' ? '全部訂閱者'
+      : b.audience?.type === 'segments' ? '依分群'
+      : b.audience?.type === 'tags' ? '依標籤'
+      : b.audience?.type;
+    const hasExclude = b.excludeAudience?.segments?.length > 0 || b.excludeAudience?.tags?.length > 0;
+    return hasExclude ? `${mainLabel}（含排除條件）` : mainLabel;
   };
 
   return (
@@ -123,7 +165,7 @@ export default function BroadcastPage() {
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#0F172A' }}>廣播訊息</h1>
           <p style={{ margin: '4px 0 0', color: '#64748B', fontSize: 14 }}>向您的受眾發送廣播訊息</p>
         </div>
-        <button onClick={() => { setShowForm(true); setEditId(null); setForm(defaultForm()); }}
+        <button onClick={() => { setShowForm(true); setEditId(null); setShowExclude(false); setForm(defaultForm()); }}
           style={{ padding: '9px 20px', borderRadius: 8, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
           + 新增廣播
         </button>
@@ -132,7 +174,7 @@ export default function BroadcastPage() {
       {/* 表單 Modal */}
       {showForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: 32, width: 540, maxHeight: '90vh', overflowY: 'auto' }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 32, width: 560, maxHeight: '92vh', overflowY: 'auto' }}>
             <h2 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700, color: '#0F172A' }}>
               {editId ? '編輯廣播' : '新增廣播'}
             </h2>
@@ -142,6 +184,7 @@ export default function BroadcastPage() {
                 <input style={inputSt} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required placeholder="例如：週末特惠" />
               </div>
 
+              {/* 受眾 */}
               <div style={{ marginBottom: 14 }}>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>受眾</label>
                 <select style={inputSt} value={form.audienceType} onChange={e => setForm(f => ({ ...f, audienceType: e.target.value }))}>
@@ -154,23 +197,8 @@ export default function BroadcastPage() {
               {form.audienceType === 'segments' && (
                 <div style={{ marginBottom: 14 }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>分群</label>
-                  <div style={{ border: '1.5px solid #E2E8F0', borderRadius: 8, padding: 10, maxHeight: 140, overflowY: 'auto' }}>
-                    {segments.map(s => (
-                      <label key={s._id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', cursor: 'pointer' }}>
-                        <input type="checkbox"
-                          checked={form.audienceSegments.includes(s._id)}
-                          onChange={e => {
-                            const next = e.target.checked
-                              ? [...form.audienceSegments, s._id]
-                              : form.audienceSegments.filter(x => x !== s._id);
-                            setForm(f => ({ ...f, audienceSegments: next }));
-                          }} />
-                        <span style={{ fontSize: 13 }}>{s.name}</span>
-                        <span style={{ fontSize: 11, color: '#94A3B8' }}>({s.memberCount})</span>
-                      </label>
-                    ))}
-                    {segments.length === 0 && <span style={{ fontSize: 12, color: '#94A3B8' }}>尚無分群</span>}
-                  </div>
+                  <SegmentCheckboxList segments={segments} selected={form.audienceSegments}
+                    onChange={v => setForm(f => ({ ...f, audienceSegments: v }))} />
                 </div>
               )}
 
@@ -181,6 +209,32 @@ export default function BroadcastPage() {
                     onChange={e => setForm(f => ({ ...f, audienceTags: e.target.value }))} placeholder="vip, 會員, 活躍" />
                 </div>
               )}
+
+              {/* 排除對象 */}
+              <div style={{ marginBottom: 14, borderTop: '1px solid #F1F5F9', paddingTop: 14 }}>
+                <button type="button"
+                  onClick={() => setShowExclude(v => !v)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: showExclude ? '#6366F1' : '#64748B', display: 'flex', alignItems: 'center', gap: 6, padding: 0 }}>
+                  <span style={{ fontSize: 16, lineHeight: 1 }}>{showExclude ? '▾' : '▸'}</span>
+                  排除對象（選填）
+                </button>
+
+                {showExclude && (
+                  <div style={{ marginTop: 12, background: '#FFF8F8', border: '1px solid #FEE2E2', borderRadius: 10, padding: 14 }}>
+                    <div style={{ marginBottom: 12 }}>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>排除標籤（以逗號分隔）</label>
+                      <input style={inputSt} value={form.excludeTags}
+                        onChange={e => setForm(f => ({ ...f, excludeTags: e.target.value }))}
+                        placeholder="不發送給這些標籤，例如：已購買, 退訂" />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>排除分群</label>
+                      <SegmentCheckboxList segments={segments} selected={form.excludeSegments}
+                        onChange={v => setForm(f => ({ ...f, excludeSegments: v }))} />
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* 訊息內容 */}
               <div style={{ marginBottom: 14 }}>
@@ -250,7 +304,7 @@ export default function BroadcastPage() {
               </div>
 
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setShowForm(false)}
+                <button type="button" onClick={closeForm}
                   style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #E2E8F0', background: 'none', cursor: 'pointer', fontSize: 13 }}>取消</button>
                 <button type="submit"
                   style={{ padding: '8px 18px', borderRadius: 8, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>儲存</button>
@@ -280,7 +334,7 @@ export default function BroadcastPage() {
                   </span>
                 </div>
                 <div style={{ fontSize: 12, color: '#64748B' }}>
-                  {b.audience?.type === 'all' ? '全部訂閱者' : b.audience?.type}
+                  {audienceLabel(b)}
                   {b.scheduledAt && ` • 排程：${format(new Date(b.scheduledAt), 'MM/dd HH:mm')}`}
                   {b.sentAt && ` • 發送時間：${format(new Date(b.sentAt), 'MM/dd HH:mm')}`}
                 </div>
@@ -292,7 +346,7 @@ export default function BroadcastPage() {
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 {(b.status === 'draft' || b.status === 'scheduled') && (
                   <>
                     <button onClick={() => handleSend(b._id)}
@@ -311,6 +365,10 @@ export default function BroadcastPage() {
                     取消
                   </button>
                 )}
+                <button onClick={() => handleDuplicate(b._id)}
+                  style={{ padding: '6px 14px', borderRadius: 7, background: '#F5F3FF', border: '1px solid #DDD6FE', color: '#7C3AED', cursor: 'pointer', fontSize: 12 }}>
+                  複製
+                </button>
                 {b.status !== 'sending' && (
                   <button onClick={() => handleDelete(b._id)}
                     style={{ padding: '6px 14px', borderRadius: 7, background: 'none', border: '1px solid #FCA5A5', color: '#DC2626', cursor: 'pointer', fontSize: 12 }}>
@@ -322,6 +380,28 @@ export default function BroadcastPage() {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function SegmentCheckboxList({ segments, selected, onChange }) {
+  return (
+    <div style={{ border: '1.5px solid #E2E8F0', borderRadius: 8, padding: 10, maxHeight: 140, overflowY: 'auto' }}>
+      {segments.map(s => (
+        <label key={s._id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', cursor: 'pointer' }}>
+          <input type="checkbox"
+            checked={selected.includes(s._id)}
+            onChange={e => {
+              const next = e.target.checked
+                ? [...selected, s._id]
+                : selected.filter(x => x !== s._id);
+              onChange(next);
+            }} />
+          <span style={{ fontSize: 13 }}>{s.name}</span>
+          <span style={{ fontSize: 11, color: '#94A3B8' }}>({s.memberCount})</span>
+        </label>
+      ))}
+      {segments.length === 0 && <span style={{ fontSize: 12, color: '#94A3B8' }}>尚無分群</span>}
     </div>
   );
 }

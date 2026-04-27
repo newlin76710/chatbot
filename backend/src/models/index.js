@@ -258,6 +258,10 @@ const broadcastSchema = new mongoose.Schema({
     tags: [String],
     contacts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Contact' }],
   },
+  excludeAudience: {
+    segments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Segment' }],
+    tags: [String],
+  },
   messages: [{
     type: { type: String, enum: ['text', 'image', 'video', 'flex', 'buttons', 'carousel'] },
     text: String,
