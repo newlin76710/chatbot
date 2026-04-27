@@ -71,7 +71,7 @@ router.post('/:id/sync-line-followers', auth, workspaceAuth('admin'), async (req
       } catch (lineErr) {
         const status = lineErr.response?.status;
         const msg = lineErr.response?.data?.message || lineErr.message;
-        return res.status(502).json({ error: `LINE API error (${status}): ${msg}` });
+        return res.status(422).json({ error: `LINE API error (${status}): ${msg}` });
       }
       allUserIds = allUserIds.concat(lineResp.data.userIds || []);
       next = lineResp.data.next || null;
