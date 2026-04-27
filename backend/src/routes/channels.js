@@ -55,7 +55,9 @@ router.post('/:id/sync-line-followers', auth, workspaceAuth('admin'), async (req
     if (!channel) return res.status(404).json({ error: 'Channel not found' });
     if (channel.platform !== 'line') return res.status(400).json({ error: 'Not a LINE channel' });
 
-    const accessToken = channel.credentials.accessToken;
+    const accessToken = channel.credentials && channel.credentials.accessToken;
+    if (!accessToken) return res.status(400).json({ error: 'Channel has no access token configured' });
+
     const headers = { Authorization: `Bearer ${accessToken}` };
 
     // Paginate through all follower IDs from LINE API
@@ -63,9 +65,16 @@ router.post('/:id/sync-line-followers', auth, workspaceAuth('admin'), async (req
     let next = null;
     do {
       const url = `https://api.line.me/v2/bot/followers/ids?limit=1000${next ? `&start=${next}` : ''}`;
-      const { data } = await axios.get(url, { headers });
-      allUserIds = allUserIds.concat(data.userIds || []);
-      next = data.next || null;
+      let lineResp;
+      try {
+        lineResp = await axios.get(url, { headers });
+      } catch (lineErr) {
+        const status = lineErr.response?.status;
+        const msg = lineErr.response?.data?.message || lineErr.message;
+        return res.status(502).json({ error: `LINE API error (${status}): ${msg}` });
+      }
+      allUserIds = allUserIds.concat(lineResp.data.userIds || []);
+      next = lineResp.data.next || null;
     } while (next);
 
     // Find which IDs already exist
