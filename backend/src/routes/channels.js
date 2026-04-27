@@ -85,27 +85,18 @@ router.post('/:id/sync-line-followers', auth, workspaceAuth('admin'), async (req
     const existingSet = new Set(existing.map(c => c.platformId));
     const newIds = allUserIds.filter(id => !existingSet.has(id));
 
-    // Create new contacts with profile data (batches of 10 to avoid rate limits)
-    let created = 0;
-    for (let i = 0; i < newIds.length; i += 10) {
-      const batch = newIds.slice(i, i + 10);
-      await Promise.all(batch.map(async (userId) => {
-        let profileData = {};
-        try {
-          const { data } = await axios.get(`https://api.line.me/v2/bot/profile/${userId}`, { headers });
-          profileData = { displayName: data.displayName, pictureUrl: data.pictureUrl, language: data.language };
-        } catch (_) {}
-        await Contact.findOneAndUpdate(
-          { platformId: userId, channel: channel._id, platform: 'line' },
-          { ...profileData, isFollowing: true },
-          { upsert: true }
-        );
-        created++;
-      }));
-      if (i + 10 < newIds.length) await new Promise(r => setTimeout(r, 300));
+    // Bulk upsert new contacts without profile data (profiles fetched lazily on first interaction)
+    if (newIds.length > 0) {
+      await Contact.bulkWrite(newIds.map(userId => ({
+        updateOne: {
+          filter: { platformId: userId, channel: channel._id, platform: 'line' },
+          update: { $setOnInsert: { platformId: userId, channel: channel._id, platform: 'line', isFollowing: true } },
+          upsert: true,
+        }
+      })));
     }
 
-    res.json({ total: allUserIds.length, existing: existingSet.size, created });
+    res.json({ total: allUserIds.length, existing: existingSet.size, created: newIds.length });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
