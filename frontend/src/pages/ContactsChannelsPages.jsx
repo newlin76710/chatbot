@@ -752,6 +752,19 @@ export function ChannelsPage() {
   const { channels, fetchChannels, createChannel, deleteChannel } = useChannelStore();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', platform: 'line', accessToken: '', channelSecret: '' });
+  const [syncingIds, setSyncingIds] = useState(new Set());
+
+  const syncLineFollowers = async (channelId) => {
+    setSyncingIds(prev => new Set([...prev, channelId]));
+    try {
+      const { data } = await api.post(`/channels/${channelId}/sync-line-followers`);
+      toast.success(`同步完成：新增 ${data.created} 位好友（共 ${data.total} 位）`);
+    } catch (err) {
+      toast.error(err.response?.data?.error || '同步失敗');
+    } finally {
+      setSyncingIds(prev => { const s = new Set(prev); s.delete(channelId); return s; });
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -854,9 +867,17 @@ export function ChannelsPage() {
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <a href={pi.docs} target="_blank" rel="noopener noreferrer"
                   style={{ fontSize: 12, color: '#6366F1', textDecoration: 'none' }}>文件 ↗</a>
+                {ch.platform === 'line' && (
+                  <button
+                    onClick={() => syncLineFollowers(ch._id)}
+                    disabled={syncingIds.has(ch._id)}
+                    style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #A7F3D0', background: '#F0FDF4', color: '#059669', cursor: syncingIds.has(ch._id) ? 'not-allowed' : 'pointer', fontSize: 11, opacity: syncingIds.has(ch._id) ? 0.6 : 1 }}>
+                    {syncingIds.has(ch._id) ? '同步中...' : '同步好友'}
+                  </button>
+                )}
                 <button onClick={() => { if (window.confirm('確定刪除此頻道？')) deleteChannel(ch._id); }}
                   style={{ marginLeft: 'auto', padding: '4px 10px', borderRadius: 6, border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', fontSize: 11 }}>
                   刪除
