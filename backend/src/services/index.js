@@ -252,7 +252,7 @@ async function sendBroadcastNow(broadcast, contacts, channelArg) {
   // 將廣播訊息轉為 conversationHistory 格式
   const broadcastHistoryEntries = broadcast.messages.map(msg => ({
     role: 'bot',
-    content: msg.text || `[${msg.type}]`,
+    content: msg.text || msg.imageUrl || msg.videoUrl || `[${msg.type}]`,
     messageType: msg.type === 'text' ? 'text' : (msg.imageUrl ? 'image' : msg.type),
     timestamp: new Date(),
   }));
