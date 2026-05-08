@@ -242,6 +242,10 @@ export function ContactsPage() {
   }, [channelsReady, activeChannelId]);
 
   useEffect(() => {
+    setSelected(null);
+  }, [activeChannelId]);
+
+  useEffect(() => {
     if (!channelsReady || !activeChannelId) return;
     const params = new URLSearchParams({ channelId: activeChannelId, page, limit: 50 });
     if (search) params.append('search', search);
