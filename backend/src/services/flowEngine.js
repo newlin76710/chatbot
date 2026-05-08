@@ -148,11 +148,16 @@ async function executeMessageNode(node, context) {
     }
     if (messages.length > 1) await sleep(500);
 
-    const content = rendered.text || rendered.imageUrl || rendered.videoUrl || '[media]';
+    const msgType = rendered.type || 'text';
+    const content = msgType === 'image'
+      ? (rendered.imageUrl || '[image]')
+      : msgType === 'video'
+        ? (rendered.videoUrl || '[video]')
+        : (rendered.text || rendered.imageUrl || rendered.videoUrl || '[media]');
     const botMsg = {
       role: 'bot',
       content,
-      messageType: rendered.type || 'text',
+      messageType: msgType,
       timestamp: new Date(),
     };
     contact.conversationHistory.push(botMsg);

@@ -250,12 +250,15 @@ async function sendBroadcastNow(broadcast, contacts, channelArg) {
   console.log(`[廣播] LINE 用戶: ${lineIds.length}，Messenger 用戶: ${messengerIds.length}，Instagram 用戶: ${instagramIds.length}`);
 
   // 將廣播訊息轉為 conversationHistory 格式
-  const broadcastHistoryEntries = broadcast.messages.map(msg => ({
-    role: 'bot',
-    content: msg.text || msg.imageUrl || msg.videoUrl || `[${msg.type}]`,
-    messageType: msg.type,
-    timestamp: new Date(),
-  }));
+  const broadcastHistoryEntries = broadcast.messages.map(msg => {
+    const msgType = msg.type || 'text';
+    const content = msgType === 'image'
+      ? (msg.imageUrl || '[image]')
+      : msgType === 'video'
+        ? (msg.videoUrl || '[video]')
+        : (msg.text || msg.imageUrl || msg.videoUrl || `[${msgType}]`);
+    return { role: 'bot', content, messageType: msgType, timestamp: new Date() };
+  });
 
   const saveBroadcastHistory = async (platformIds) => {
     if (!platformIds.length) return;
