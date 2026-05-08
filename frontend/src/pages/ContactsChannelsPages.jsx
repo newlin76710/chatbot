@@ -148,14 +148,6 @@ export function ContactsPage() {
     setSending(true);
     try {
       await api.post(`/contacts/${selected._id}/send`, { text: sendText.trim() });
-      // 加到本地對話紀錄
-      setSelected(prev => ({
-        ...prev,
-        conversationHistory: [
-          ...(prev.conversationHistory || []),
-          { role: 'bot', content: sendText.trim(), messageType: 'text', timestamp: new Date().toISOString() },
-        ],
-      }));
       setSendText('');
       if (activeTab !== 'history') setActiveTab('history');
     } catch (err) {
