@@ -10,7 +10,7 @@ const { sendMessengerMessage } = require('./messengerService');
 const { emitContactMessage, emitContactUpdate } = require('./index');
 
 // Entry point
-async function processMessage({ contact, flow, channel, text, postbackPayload, isResuming = false }) {
+async function processMessage({ contact, flow, channel, text, postbackPayload, isResuming = false, replyToken = null, replyContext = null }) {
   try {
     let startNodeId;
 
@@ -76,6 +76,7 @@ async function processMessage({ contact, flow, channel, text, postbackPayload, i
       text,
       postbackPayload,
       customFieldsPlain,
+      replyContext: replyContext || { replyToken, used: false },
     };
 
     await executeNode(startNodeId, context);
@@ -142,7 +143,12 @@ async function executeMessageNode(node, context) {
   for (const msg of messages) {
     const rendered = renderTemplate(msg, context);
     if (channel.platform === 'line') {
-      await sendLineMessage(channel, contact.platformId, rendered);
+      const options = {};
+      if (context.replyContext?.replyToken && !context.replyContext.used) {
+        options.replyToken = context.replyContext.replyToken;
+        context.replyContext.used = true;
+      }
+      await sendLineMessage(channel, contact.platformId, rendered, options);
     } else if (channel.platform === 'messenger' || channel.platform === 'instagram') {
       await sendMessengerMessage(channel, contact.platformId, rendered);
     }
@@ -248,7 +254,13 @@ async function executeActionNode(node, context) {
         if (action.flowId) {
           const targetFlow = await Flow.findById(action.flowId);
           if (targetFlow) {
-            await processMessage({ contact: context.contact, flow: targetFlow, channel: context.channel, text: '' });
+            await processMessage({
+              contact: context.contact,
+              flow: targetFlow,
+              channel: context.channel,
+              text: '',
+              replyContext: context.replyContext,
+            });
           }
         }
         break;
@@ -314,6 +326,7 @@ async function executeInputNode(node, context) {
 async function executeDelayNode(node, context) {
   const { delay } = node.data;
   if (!delay) return;
+  if (context.replyContext) context.replyContext.used = true;
   const ms = {
     seconds: delay.value * 1000,
     minutes: delay.value * 60 * 1000,

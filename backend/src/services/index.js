@@ -44,7 +44,35 @@ async function resolveShareButtons(message, channel) {
   };
 }
 
-async function sendLineMessage(channel, userId, message) {
+function isUsableLineReplyToken(replyToken) {
+  return Boolean(replyToken) && !/^0+$/.test(String(replyToken));
+}
+
+async function sendLineReplyMessage(channel, replyToken, message) {
+  const resolved = await resolveShareButtons(message, channel);
+  const messages = convertToLineFormat([resolved]);
+  await axios.post(
+    `${LINE_API}/message/reply`,
+    { replyToken, messages },
+    {
+      headers: {
+        Authorization: `Bearer ${channel.credentials.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+}
+
+async function sendLineMessage(channel, userId, message, options = {}) {
+  if (isUsableLineReplyToken(options.replyToken)) {
+    try {
+      await sendLineReplyMessage(channel, options.replyToken, message);
+      return { method: 'reply' };
+    } catch (e) {
+      console.warn('[LINE] reply message failed, falling back to push:', e.response?.data || e.message);
+    }
+  }
+
   const resolved = await resolveShareButtons(message, channel);
   const messages = convertToLineFormat([resolved]);
   await axios.post(
@@ -57,6 +85,7 @@ async function sendLineMessage(channel, userId, message) {
       },
     }
   );
+  return { method: 'push' };
 }
 
 async function sendLineMulticast(channel, userIds, messages) {
@@ -542,7 +571,7 @@ function chunkArray(arr, size) {
 }
 
 module.exports = {
-  sendLineMessage, sendLineMulticast,
+  sendLineMessage, sendLineReplyMessage, sendLineMulticast,
   sendMessengerMessage, sendMessengerBroadcast,
   sendBroadcastNow, addBroadcastJob,
   startScheduler,

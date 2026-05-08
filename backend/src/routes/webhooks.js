@@ -36,7 +36,7 @@ router.post('/line/:channelId', async (req, res) => {
 });
 
 async function handleLineEvent(event, channel) {
-  const { type, source, message, postback } = event;
+  const { type, source, message, postback, replyToken } = event;
   const platformId = source.userId || source.groupId;
   if (!platformId) return;
 
@@ -114,7 +114,7 @@ async function handleLineEvent(event, channel) {
     const resumeFlow = await Flow.findById(contact.currentFlowState.flowId);
     if (resumeFlow) {
       console.log('[LINE] 繼續等待輸入的流程:', resumeFlow.name);
-      await processMessage({ contact, flow: resumeFlow, channel, text, isResuming: true });
+      await processMessage({ contact, flow: resumeFlow, channel, text, isResuming: true, replyToken });
       return;
     }
   }
@@ -151,7 +151,7 @@ async function handleLineEvent(event, channel) {
         console.log('[LINE] 標籤限制跳過流程:', flow.name, '| 命中排除標籤:', contact.tags.filter(tag => excludeTags.includes(tag)));
         continue;
       }
-      await processMessage({ contact, flow, channel, text, postbackPayload });
+      await processMessage({ contact, flow, channel, text, postbackPayload, replyToken });
       // 若關鍵字符合某導流活動，記錄加入數
       if (triggerType === 'keyword' && text) {
         Campaign.updateOne(
