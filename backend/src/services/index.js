@@ -253,7 +253,7 @@ async function sendBroadcastNow(broadcast, contacts, channelArg) {
   const broadcastHistoryEntries = broadcast.messages.map(msg => ({
     role: 'bot',
     content: msg.text || msg.imageUrl || msg.videoUrl || `[${msg.type}]`,
-    messageType: msg.type === 'text' ? 'text' : (msg.imageUrl ? 'image' : msg.type),
+    messageType: msg.type,
     timestamp: new Date(),
   }));
 
