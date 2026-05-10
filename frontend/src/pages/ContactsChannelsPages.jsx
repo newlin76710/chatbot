@@ -192,6 +192,17 @@ export function ContactsPage() {
     setSending(false);
   };
 
+  const handleToggleFlowDisabled = async () => {
+    if (!selected) return;
+    try {
+      const { data } = await api.patch(`/contacts/${selected._id}/flow-disabled`);
+      setSelected(prev => ({ ...prev, flowDisabled: data.flowDisabled }));
+      toast.success(data.flowDisabled ? '已停用所有腳本' : '已恢復腳本');
+    } catch (err) {
+      toast.error(err.response?.data?.error || '操作失敗');
+    }
+  };
+
   const handleDeleteContact = async () => {
     if (!window.confirm(`確定要刪除「${selected.displayName || selected.platformId}」？此操作無法復原。`)) return;
     try {
@@ -469,6 +480,10 @@ export function ContactsPage() {
               <button onClick={handleClearHistory}
                 style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #E2E8F0', background: '#fff', color: '#64748B', fontSize: 11, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
                 清除紀錄
+              </button>
+              <button onClick={handleToggleFlowDisabled}
+                style={{ padding: '4px 10px', borderRadius: 6, border: selected.flowDisabled ? '1px solid #FCD34D' : '1px solid #E2E8F0', background: selected.flowDisabled ? '#FFFBEB' : '#fff', color: selected.flowDisabled ? '#D97706' : '#64748B', fontSize: 11, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                {selected.flowDisabled ? '已停用腳本' : '停用腳本'}
               </button>
               <button onClick={handleDeleteContact}
                 style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#DC2626', fontSize: 11, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>

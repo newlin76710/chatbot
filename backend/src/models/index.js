@@ -85,6 +85,7 @@ const contactSchema = new mongoose.Schema({
   segments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Segment' }],
   isBlocked: { type: Boolean, default: false },
   isFollowing: { type: Boolean, default: true },
+  flowDisabled: { type: Boolean, default: false },
   lastInteractedAt: Date,
   adminReadAt: Date,
   conversationHistory: [{

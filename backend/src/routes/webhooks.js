@@ -109,6 +109,9 @@ async function handleLineEvent(event, channel) {
     emitContactMessage(channel._id, contact._id, newMsg);
   }
 
+  // 若此聯絡人已停用所有腳本，不執行任何流程
+  if (contact.flowDisabled) return;
+
   // 優先：若聯絡人在流程中等待輸入，繼續該流程
   if (contact.currentFlowState?.waitingForInput && text) {
     const resumeFlow = await Flow.findById(contact.currentFlowState.flowId);
@@ -245,6 +248,9 @@ async function handleMessengerEvent(event, channel) {
     emitContactMessage(channel._id, contact._id, newMsg);
   }
 
+  // 若此聯絡人已停用所有腳本，不執行任何流程
+  if (contact.flowDisabled) return;
+
   // If contact is in mid-flow waiting for input, resume it first
   if (contact.currentFlowState?.waitingForInput && text) {
     const flow = await Flow.findById(contact.currentFlowState.flowId);
@@ -368,6 +374,9 @@ async function handleInstagramEvent(event, channel) {
     );
     emitContactMessage(channel._id, contact._id, newMsg);
   }
+
+  // 若此聯絡人已停用所有腳本，不執行任何流程
+  if (contact.flowDisabled) return;
 
   // 若聯絡人在流程中等待輸入，繼續該流程
   if (contact.currentFlowState?.waitingForInput && text) {

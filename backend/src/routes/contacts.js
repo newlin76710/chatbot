@@ -345,6 +345,21 @@ router.delete('/:id/history', auth, workspaceAuth('editor'), async (req, res) =>
   }
 });
 
+// PATCH /api/contacts/:id/flow-disabled — 切換停用腳本旗標
+router.patch('/:id/flow-disabled', auth, workspaceAuth('editor'), async (req, res) => {
+  try {
+    const contact = await Contact.findById(req.params.id).populate('channel');
+    if (!contact) return res.status(404).json({ error: '找不到此聯絡人' });
+    if (!contact.channel?.workspace?.equals(req.workspace._id))
+      return res.status(403).json({ error: 'Forbidden' });
+    contact.flowDisabled = !contact.flowDisabled;
+    await contact.save();
+    res.json({ ok: true, flowDisabled: contact.flowDisabled });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/contacts/:id/trigger-flow
 router.post('/:id/trigger-flow', auth, workspaceAuth('editor'), async (req, res) => {
   try {
