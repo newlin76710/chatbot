@@ -58,11 +58,20 @@ router.post('/templates/:id/import', auth, workspaceAuth('editor'), async (req, 
 router.get('/', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
     const { channelId } = req.query;
-    const query = { workspace: req.workspace._id };
-    if (channelId) query.channel = channelId;
+    let query;
+
+    if (channelId) {
+      // 確認目前工作區有此頻道存取權（含共享頻道）
+      const channel = await Channel.findOne({ _id: channelId, workspaces: req.workspace._id });
+      if (!channel) return res.status(403).json({ error: '無此頻道存取權限' });
+      // 顯示該頻道的所有流程（不限工作區，讓共享工作區也能看到）
+      query = { channel: channelId };
+    } else {
+      query = { workspace: req.workspace._id };
+    }
 
     const flows = await Flow.find(query)
-      .select('name description isActive isTemplate isGlobalTemplate stats createdAt updatedAt channel')
+      .select('name description isActive isTemplate isGlobalTemplate stats createdAt updatedAt channel workspace')
       .populate('channel', 'name platform')
       .sort('-updatedAt');
 
@@ -75,9 +84,14 @@ router.get('/', auth, workspaceAuth('viewer'), async (req, res) => {
 // GET /api/flows/:id
 router.get('/:id', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
-    const flow = await Flow.findOne({ _id: req.params.id, workspace: req.workspace._id })
-      .populate('channel', 'name platform');
+    const flow = await Flow.findById(req.params.id).populate('channel', 'name platform');
     if (!flow) return res.status(404).json({ error: '找不到此流程' });
+
+    // 允許：擁有者工作區，或目前工作區對該頻道有存取權
+    const isOwner = String(flow.workspace) === String(req.workspace._id);
+    const hasChannelAccess = flow.channel && await Channel.exists({ _id: flow.channel, workspaces: req.workspace._id });
+    if (!isOwner && !hasChannelAccess) return res.status(403).json({ error: '無此流程存取權限' });
+
     res.json({ flow });
   } catch (err) {
     res.status(500).json({ error: err.message });
