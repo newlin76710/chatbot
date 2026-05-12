@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "migrate": "node src/utils/migrate.js"
+    "migrate": "node src/scripts/migrateToWorkspaces.js"
   },
   "dependencies": {
     "axios": "^1.6.0",
