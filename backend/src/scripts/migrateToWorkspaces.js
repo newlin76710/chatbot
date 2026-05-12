@@ -68,15 +68,12 @@ async function migrate() {
   }
 
   // 填充 Channel.workspaces 陣列（多工作區共享頻道功能）
-  const channelsToFill = await Channel.find({ workspace: { $exists: true }, workspaces: { $size: 0 } });
-  let filledCount = 0;
-  for (const ch of channelsToFill) {
-    if (ch.workspace) {
-      await Channel.updateOne({ _id: ch._id }, { $addToSet: { workspaces: ch.workspace } });
-      filledCount++;
-    }
-  }
-  console.log(`Populated workspaces[] for ${filledCount} channels`);
+  // 使用 aggregation pipeline update 處理欄位不存在與空陣列兩種情況
+  const fillResult = await Channel.collection.updateMany(
+    { workspace: { $exists: true, $ne: null } },
+    [{ $set: { workspaces: { $setUnion: [{ $ifNull: ['$workspaces', []] }, ['$workspace']] } } }]
+  );
+  console.log(`Populated workspaces[] for ${fillResult.modifiedCount} channels`);
 
   console.log('Migration complete!');
   await mongoose.disconnect();
