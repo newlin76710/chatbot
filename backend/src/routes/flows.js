@@ -28,7 +28,7 @@ router.get('/templates', auth, workspaceAuth('viewer'), async (req, res) => {
 router.post('/templates/:id/import', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const { channelId } = req.body;
-    const channel = await Channel.findOne({ _id: channelId, workspaces: req.workspace._id });
+    const channel = await Channel.findOne({ _id: channelId, $or: [{ workspaces: req.workspace._id }, { workspace: req.workspace._id }] });
     if (!channel) return res.status(404).json({ error: '找不到此頻道' });
 
     // 全域範本或工作區範本皆可匯入
@@ -62,7 +62,7 @@ router.get('/', auth, workspaceAuth('viewer'), async (req, res) => {
 
     if (channelId) {
       // 確認目前工作區有此頻道存取權（含共享頻道）
-      const channel = await Channel.findOne({ _id: channelId, workspaces: req.workspace._id });
+      const channel = await Channel.findOne({ _id: channelId, $or: [{ workspaces: req.workspace._id }, { workspace: req.workspace._id }] });
       if (!channel) return res.status(403).json({ error: '無此頻道存取權限' });
       // 顯示該頻道的所有流程（不限工作區，讓共享工作區也能看到）
       query = { channel: channelId };
@@ -89,7 +89,7 @@ router.get('/:id', auth, workspaceAuth('viewer'), async (req, res) => {
 
     // 允許：擁有者工作區，或目前工作區對該頻道有存取權
     const isOwner = String(flow.workspace) === String(req.workspace._id);
-    const hasChannelAccess = flow.channel && await Channel.exists({ _id: flow.channel, workspaces: req.workspace._id });
+    const hasChannelAccess = flow.channel && await Channel.exists({ _id: flow.channel, $or: [{ workspaces: req.workspace._id }, { workspace: req.workspace._id }] });
     if (!isOwner && !hasChannelAccess) return res.status(403).json({ error: '無此流程存取權限' });
 
     res.json({ flow });
@@ -105,7 +105,7 @@ router.post('/', auth, workspaceAuth('editor'), async (req, res) => {
     if (!name || !channelId)
       return res.status(400).json({ error: '名稱與頻道 ID 為必填' });
 
-    const channel = await Channel.findOne({ _id: channelId, workspaces: req.workspace._id });
+    const channel = await Channel.findOne({ _id: channelId, $or: [{ workspaces: req.workspace._id }, { workspace: req.workspace._id }] });
     if (!channel) return res.status(404).json({ error: '找不到此頻道' });
 
     const flow = await Flow.create({

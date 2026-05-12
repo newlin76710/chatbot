@@ -44,7 +44,7 @@ router.post('/', auth, workspaceAuth('editor'), async (req, res) => {
     const { channelId, name, description, keyword, lineId, messengerPageId, platform } = req.body;
     if (!name || !channelId) return res.status(400).json({ error: '名稱與頻道為必填' });
 
-    const channel = await Channel.findOne({ _id: channelId, workspaces: req.workspace._id });
+    const channel = await Channel.findOne({ _id: channelId, $or: [{ workspaces: req.workspace._id }, { workspace: req.workspace._id }] });
     if (!channel) return res.status(404).json({ error: '找不到此頻道' });
 
     let code;

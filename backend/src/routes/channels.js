@@ -8,7 +8,7 @@ const axios = require('axios');
 
 router.get('/', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
-    const channels = await Channel.find({ workspaces: req.workspace._id })
+    const channels = await Channel.find({ $or: [{ workspaces: req.workspace._id }, { workspace: req.workspace._id }] })
       .select('-credentials.channelSecret')
       .sort('-createdAt');
     res.json({ channels });
@@ -61,7 +61,7 @@ router.put('/:id', auth, workspaceAuth('admin'), async (req, res) => {
 
 router.delete('/:id', auth, workspaceAuth('admin'), async (req, res) => {
   try {
-    const channel = await Channel.findOne({ _id: req.params.id, workspaces: req.workspace._id });
+    const channel = await Channel.findOne({ _id: req.params.id, $or: [{ workspaces: req.workspace._id }, { workspace: req.workspace._id }] });
     if (!channel) return res.status(404).json({ error: '頻道不存在' });
 
     if (String(channel.workspace) === String(req.workspace._id)) {
@@ -78,7 +78,7 @@ router.delete('/:id', auth, workspaceAuth('admin'), async (req, res) => {
 
 router.post('/:id/sync-line-followers', auth, workspaceAuth('admin'), async (req, res) => {
   try {
-    const channel = await Channel.findOne({ _id: req.params.id, workspaces: req.workspace._id });
+    const channel = await Channel.findOne({ _id: req.params.id, $or: [{ workspaces: req.workspace._id }, { workspace: req.workspace._id }] });
     if (!channel) return res.status(404).json({ error: 'Channel not found' });
     if (channel.platform !== 'line') return res.status(400).json({ error: 'Not a LINE channel' });
 

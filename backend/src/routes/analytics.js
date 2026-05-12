@@ -12,7 +12,7 @@ router.get('/overview', auth, workspaceAuth('viewer'), async (req, res) => {
     const { channelId } = req.query;
     if (!channelId) return res.status(400).json({ error: 'channelId required' });
 
-    const channel = await Channel.findOne({ _id: channelId, workspaces: req.workspace._id });
+    const channel = await Channel.findOne({ _id: channelId, $or: [{ workspaces: req.workspace._id }, { workspace: req.workspace._id }] });
     if (!channel) return res.status(404).json({ error: '找不到此頻道' });
 
     const [totalContacts, newContactsToday, activeFlows, totalBroadcasts] = await Promise.all([
