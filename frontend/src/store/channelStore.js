@@ -42,4 +42,10 @@ export const useChannelStore = create((set, get) => ({
     await api.delete(`/channels/${id}`);
     set(s => ({ channels: s.channels.filter(c => c._id !== id) }));
   },
+
+  linkChannel: async (channelId) => {
+    const { data } = await api.post(`/channels/${channelId}/link`);
+    set(s => ({ channels: [data.channel, ...s.channels] }));
+    return data.channel;
+  },
 }));

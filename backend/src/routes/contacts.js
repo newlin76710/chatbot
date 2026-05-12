@@ -11,7 +11,7 @@ const { processMessage } = require('../services/flowEngine');
 router.get('/', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
     const { channelId, tag, search, page = 1, limit = 50, dateField, dateFrom, dateTo, sortBy = 'lastInteractedAt', sortDir = 'desc' } = req.query;
-    const channel = await Channel.findOne({ _id: channelId, workspace: req.workspace._id });
+    const channel = await Channel.findOne({ _id: channelId, workspaces: req.workspace._id });
     if (!channel) return res.status(404).json({ error: '找不到此頻道' });
 
     const query = { channel: channelId };
@@ -73,7 +73,7 @@ router.get('/debug/all', auth, async (req, res) => {
 router.get('/export', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
     const { channelId, tag, search, dateField, dateFrom, dateTo, sortBy = 'lastInteractedAt', sortDir = 'desc' } = req.query;
-    const channel = await Channel.findOne({ _id: channelId, workspace: req.workspace._id });
+    const channel = await Channel.findOne({ _id: channelId, workspaces: req.workspace._id });
     if (!channel) return res.status(404).json({ error: '找不到此頻道' });
 
     const query = { channel: channelId };

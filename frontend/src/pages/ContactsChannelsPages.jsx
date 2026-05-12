@@ -1,6 +1,7 @@
 // ContactsPage.jsx
 import React, { useEffect, useRef, useState } from 'react';
 import { useChannelStore } from '../store/channelStore';
+import { useWorkspaceStore } from '../store/workspaceStore';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -760,8 +761,12 @@ export function ContactsPage() {
 // ChannelsPage.jsx
 // ============================================================
 export function ChannelsPage() {
-  const { channels, fetchChannels, createChannel, deleteChannel } = useChannelStore();
+  const { channels, fetchChannels, createChannel, deleteChannel, linkChannel } = useChannelStore();
+  const { activeWorkspaceId } = useWorkspaceStore();
   const [showForm, setShowForm] = useState(false);
+  const [showLinkForm, setShowLinkForm] = useState(false);
+  const [linkId, setLinkId] = useState('');
+  const [linking, setLinking] = useState(false);
   const [form, setForm] = useState({ name: '', platform: 'line', accessToken: '', channelSecret: '' });
   const [syncingIds, setSyncingIds] = useState(new Set());
 
@@ -790,11 +795,39 @@ export function ChannelsPage() {
     } catch { toast.error('操作失敗'); }
   };
 
+  const handleLink = async (e) => {
+    e.preventDefault();
+    setLinking(true);
+    try {
+      await linkChannel(linkId.trim());
+      toast.success('已成功加入頻道！');
+      setShowLinkForm(false);
+      setLinkId('');
+    } catch (err) {
+      toast.error(err.response?.data?.error || '加入失敗，請確認頻道 ID');
+    } finally {
+      setLinking(false);
+    }
+  };
+
+  const handleDelete = async (ch) => {
+    const isOwner = String(ch.workspace) === String(activeWorkspaceId);
+    const msg = isOwner ? '確定要永久刪除此頻道？此操作無法復原。' : '確定要從此工作區移除此頻道？（頻道本身不會被刪除）';
+    if (!window.confirm(msg)) return;
+    try {
+      await deleteChannel(ch._id);
+      toast.success(isOwner ? '頻道已刪除' : '已從工作區移除頻道');
+    } catch { toast.error('操作失敗'); }
+  };
+
   const PLATFORM_INFO = {
     line: { label: 'LINE', color: '#22C55E', bg: '#F0FDF4', docs: 'https://developers.line.biz' },
     messenger: { label: 'Messenger', color: '#3B82F6', bg: '#EFF6FF', docs: 'https://developers.facebook.com/docs/messenger-platform' },
     instagram: { label: 'Instagram', color: '#E1306C', bg: '#FFF0F5', docs: 'https://developers.facebook.com/docs/messenger-platform/instagram' },
   };
+
+  const modalStyle = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
+  const cardStyle = { background: '#fff', borderRadius: 16, padding: 32, width: 460 };
 
   return (
     <div style={{ padding: 32 }}>
@@ -803,15 +836,51 @@ export function ChannelsPage() {
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#0F172A' }}>頻道管理</h1>
           <p style={{ margin: '4px 0 0', color: '#64748B', fontSize: 14 }}>連接 LINE、Messenger、Instagram 等平台</p>
         </div>
-        <button onClick={() => setShowForm(true)}
-          style={{ padding: '9px 20px', borderRadius: 8, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
-          + 新增頻道
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={() => setShowLinkForm(true)}
+            style={{ padding: '9px 20px', borderRadius: 8, background: '#fff', color: '#6366F1', border: '1.5px solid #6366F1', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+            加入現有頻道
+          </button>
+          <button onClick={() => setShowForm(true)}
+            style={{ padding: '9px 20px', borderRadius: 8, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+            + 新增頻道
+          </button>
+        </div>
       </div>
 
+      {/* 加入現有頻道對話框 */}
+      {showLinkForm && (
+        <div style={modalStyle}>
+          <div style={cardStyle}>
+            <h2 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700 }}>加入現有頻道</h2>
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: '#64748B' }}>
+              輸入其他工作區管理者提供的頻道 ID，即可將該頻道加入到目前工作區。
+            </p>
+            <form onSubmit={handleLink}>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>頻道 ID</label>
+                <input
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, boxSizing: 'border-box', outline: 'none', fontFamily: 'monospace' }}
+                  value={linkId} onChange={e => setLinkId(e.target.value)}
+                  placeholder="貼上頻道 ID（例如：68210abc...）" required />
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => { setShowLinkForm(false); setLinkId(''); }}
+                  style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #E2E8F0', background: 'none', cursor: 'pointer', fontSize: 13 }}>取消</button>
+                <button type="submit" disabled={linking}
+                  style={{ padding: '8px 18px', borderRadius: 8, background: '#6366F1', color: '#fff', border: 'none', cursor: linking ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, opacity: linking ? 0.7 : 1 }}>
+                  {linking ? '加入中...' : '加入'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 新增頻道對話框 */}
       {showForm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: 32, width: 460 }}>
+        <div style={modalStyle}>
+          <div style={cardStyle}>
             <h2 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700 }}>新增頻道</h2>
             <form onSubmit={handleSubmit}>
               {[
@@ -849,8 +918,9 @@ export function ChannelsPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px,1fr))', gap: 16 }}>
         {channels.map(ch => {
           const pi = PLATFORM_INFO[ch.platform] || PLATFORM_INFO.line;
+          const isOwner = String(ch.workspace) === String(activeWorkspaceId);
           return (
-            <div key={ch._id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', padding: 22 }}>
+            <div key={ch._id} style={{ background: '#fff', borderRadius: 12, border: `1px solid ${isOwner ? '#E2E8F0' : '#C7D2FE'}`, padding: 22 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 8, background: pi.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
                   {ch.platform === 'line' ? '🟢' : ch.platform === 'instagram' ? '📷' : '🔵'}
@@ -859,14 +929,32 @@ export function ChannelsPage() {
                   <div style={{ fontWeight: 600, fontSize: 15, color: '#0F172A' }}>{ch.name}</div>
                   <div style={{ fontSize: 12, color: '#94A3B8' }}>{pi.label}</div>
                 </div>
-                <span style={{ marginLeft: 'auto', fontSize: 11, padding: '3px 8px', borderRadius: 20, background: ch.isActive ? '#F0FDF4' : '#F1F5F9', color: ch.isActive ? '#15803D' : '#94A3B8', fontWeight: 500 }}>
-                  {ch.isActive ? '啟用中' : '未啟用'}
-                </span>
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+                  {!isOwner && (
+                    <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 20, background: '#EEF2FF', color: '#6366F1', fontWeight: 600 }}>共享</span>
+                  )}
+                  <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 20, background: ch.isActive ? '#F0FDF4' : '#F1F5F9', color: ch.isActive ? '#15803D' : '#94A3B8', fontWeight: 500 }}>
+                    {ch.isActive ? '啟用中' : '未啟用'}
+                  </span>
+                </div>
               </div>
 
               <div style={{ background: '#F8F9FC', borderRadius: 8, padding: '10px 12px', marginBottom: 8, fontSize: 11, fontFamily: 'monospace', color: '#64748B', wordBreak: 'break-all' }}>
                 <span style={{ color: '#94A3B8' }}>Webhook：</span>/webhook/{ch.platform}/{ch._id}
               </div>
+
+              {/* 頻道 ID（供共享給其他工作區使用） */}
+              {isOwner && (
+                <div style={{ background: '#F8F9FC', borderRadius: 8, padding: '8px 12px', marginBottom: 8, fontSize: 11, color: '#64748B', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: '#94A3B8', whiteSpace: 'nowrap' }}>頻道 ID：</span>
+                  <span style={{ fontFamily: 'monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch._id}</span>
+                  <button onClick={() => { navigator.clipboard.writeText(ch._id); toast.success('頻道 ID 已複製'); }}
+                    style={{ padding: '2px 8px', borderRadius: 4, border: '1px solid #CBD5E1', background: '#fff', color: '#64748B', cursor: 'pointer', fontSize: 10, whiteSpace: 'nowrap' }}>
+                    複製
+                  </button>
+                </div>
+              )}
+
               {(ch.platform === 'messenger' || ch.platform === 'instagram') && ch.credentials?.verifyToken && (
                 <div style={{ background: '#FFF7ED', borderRadius: 8, padding: '10px 12px', marginBottom: 8, fontSize: 11, color: '#92400E', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                   <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>Verify Token：</span>
@@ -889,9 +977,9 @@ export function ChannelsPage() {
                     {syncingIds.has(ch._id) ? '同步中...' : '同步好友'}
                   </button>
                 )}
-                <button onClick={() => { if (window.confirm('確定刪除此頻道？')) deleteChannel(ch._id); }}
-                  style={{ marginLeft: 'auto', padding: '4px 10px', borderRadius: 6, border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', fontSize: 11 }}>
-                  刪除
+                <button onClick={() => handleDelete(ch)}
+                  style={{ marginLeft: 'auto', padding: '4px 10px', borderRadius: 6, border: `1px solid ${isOwner ? '#FCA5A5' : '#C7D2FE'}`, background: isOwner ? '#FEF2F2' : '#EEF2FF', color: isOwner ? '#DC2626' : '#6366F1', cursor: 'pointer', fontSize: 11 }}>
+                  {isOwner ? '刪除' : '移除'}
                 </button>
               </div>
             </div>

@@ -67,6 +67,17 @@ async function migrate() {
     console.log(`Migrated ${migrated}/${docs.length} ${name} documents`);
   }
 
+  // 填充 Channel.workspaces 陣列（多工作區共享頻道功能）
+  const channelsToFill = await Channel.find({ workspace: { $exists: true }, workspaces: { $size: 0 } });
+  let filledCount = 0;
+  for (const ch of channelsToFill) {
+    if (ch.workspace) {
+      await Channel.updateOne({ _id: ch._id }, { $addToSet: { workspaces: ch.workspace } });
+      filledCount++;
+    }
+  }
+  console.log(`Populated workspaces[] for ${filledCount} channels`);
+
   console.log('Migration complete!');
   await mongoose.disconnect();
 }

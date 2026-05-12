@@ -28,7 +28,7 @@ router.get('/templates', auth, workspaceAuth('viewer'), async (req, res) => {
 router.post('/templates/:id/import', auth, workspaceAuth('editor'), async (req, res) => {
   try {
     const { channelId } = req.body;
-    const channel = await Channel.findOne({ _id: channelId, workspace: req.workspace._id });
+    const channel = await Channel.findOne({ _id: channelId, workspaces: req.workspace._id });
     if (!channel) return res.status(404).json({ error: '找不到此頻道' });
 
     // 全域範本或工作區範本皆可匯入
@@ -91,7 +91,7 @@ router.post('/', auth, workspaceAuth('editor'), async (req, res) => {
     if (!name || !channelId)
       return res.status(400).json({ error: '名稱與頻道 ID 為必填' });
 
-    const channel = await Channel.findOne({ _id: channelId, workspace: req.workspace._id });
+    const channel = await Channel.findOne({ _id: channelId, workspaces: req.workspace._id });
     if (!channel) return res.status(404).json({ error: '找不到此頻道' });
 
     const flow = await Flow.create({

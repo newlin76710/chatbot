@@ -63,10 +63,12 @@ const channelSchema = new mongoose.Schema({
   },
   ownedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   workspace: { type: mongoose.Schema.Types.ObjectId, ref: 'Workspace' },
+  workspaces: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Workspace' }],
   isActive: { type: Boolean, default: true },
   webhookUrl: String,
   profilePicture: String,
 }, { timestamps: true });
+channelSchema.index({ workspaces: 1 });
 
 const Channel = mongoose.model('Channel', channelSchema);
 
