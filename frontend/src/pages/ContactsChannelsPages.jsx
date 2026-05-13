@@ -782,8 +782,13 @@ export function ChannelsPage() {
       const { data } = await api.get('/auth/facebook/url');
       const popup = window.open(data.url, 'fb_auth', 'width=620,height=680,left=300,top=80');
 
+      let timer = null;
+      let resolved = false;
+
       const handler = (e) => {
         if (!e.data?.type?.startsWith('fb_')) return;
+        resolved = true;
+        clearInterval(timer);
         window.removeEventListener('message', handler);
         setFbConnecting(false);
         if (e.data.type === 'fb_pages') {
@@ -799,13 +804,18 @@ export function ChannelsPage() {
       };
       window.addEventListener('message', handler);
 
-      const timer = setInterval(() => {
-        if (popup?.closed) {
+      // popup 關閉時若尚未收到 postMessage，延遲 800ms 再清理（避免 race condition）
+      timer = setInterval(() => {
+        if (popup?.closed && !resolved) {
           clearInterval(timer);
-          window.removeEventListener('message', handler);
-          setFbConnecting(false);
+          setTimeout(() => {
+            if (!resolved) {
+              window.removeEventListener('message', handler);
+              setFbConnecting(false);
+            }
+          }, 800);
         }
-      }, 1000);
+      }, 500);
     } catch {
       toast.error('無法取得 Facebook 授權網址，請確認平台已設定 FB_APP_ID');
       setFbConnecting(false);

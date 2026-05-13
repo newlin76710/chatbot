@@ -98,14 +98,23 @@ router.get('/facebook/callback', async (req, res) => {
 
   const sendToOpener = (data) => {
     // helmet 預設 CSP 會擋 inline script，此 callback 頁需明確允許
-    res.setHeader('Content-Security-Policy', "script-src 'unsafe-inline';");
+    res.setHeader('Content-Security-Policy', "script-src 'unsafe-inline'; style-src 'unsafe-inline';");
     const json = JSON.stringify(data).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
-    res.send(`<!DOCTYPE html><html><body><script>
-      (function(){
-        if(window.opener){ window.opener.postMessage(${json},'*'); }
-        window.close();
-      })();
-    \x3c/script></body></html>`);
+    const isError = data.type === 'fb_error';
+    res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f8f9fc;">
+<div style="text-align:center;padding:32px;">
+  <div style="font-size:40px;margin-bottom:12px;">${isError ? '❌' : '✅'}</div>
+  <div style="font-size:16px;color:#374151;margin-bottom:8px;">${isError ? '連結失敗' : '授權成功，正在返回...'}</div>
+  <div style="font-size:13px;color:#94a3b8;" id="msg">此視窗將自動關閉</div>
+</div>
+<script>
+  (function(){
+    var data = ${json};
+    if(window.opener){ window.opener.postMessage(data,'*'); }
+    setTimeout(function(){ window.close(); }, 300);
+    setTimeout(function(){ document.getElementById('msg').textContent='若視窗未關閉，請手動關閉此分頁'; }, 1500);
+  })();
+\x3c/script></body></html>`);
   };
 
   if (error || !code) return sendToOpener({ type: 'fb_error', error: '授權失敗或已取消' });
