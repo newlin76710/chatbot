@@ -96,10 +96,17 @@ router.get('/facebook/callback', async (req, res) => {
   const { code, error } = req.query;
   const { FB_APP_ID, FB_APP_SECRET, BACKEND_URL } = process.env;
 
-  const sendToOpener = (data) => res.send(`<!DOCTYPE html><html><body><script>
-    window.opener && window.opener.postMessage(${JSON.stringify(data)}, '*');
-    window.close();
-  </script></body></html>`);
+  const sendToOpener = (data) => {
+    // helmet 預設 CSP 會擋 inline script，此 callback 頁需明確允許
+    res.setHeader('Content-Security-Policy', "script-src 'unsafe-inline';");
+    const json = JSON.stringify(data).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+    res.send(`<!DOCTYPE html><html><body><script>
+      (function(){
+        if(window.opener){ window.opener.postMessage(${json},'*'); }
+        window.close();
+      })();
+    \x3c/script></body></html>`);
+  };
 
   if (error || !code) return sendToOpener({ type: 'fb_error', error: '授權失敗或已取消' });
 
