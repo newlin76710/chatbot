@@ -84,7 +84,7 @@ router.get('/facebook/url', (req, res) => {
   const params = new URLSearchParams({
     client_id: FB_APP_ID,
     redirect_uri: redirectUri,
-    scope: 'pages_messaging,pages_read_engagement,pages_manage_metadata',
+    scope: 'pages_show_list,pages_messaging,pages_read_engagement,pages_manage_metadata',
     response_type: 'code',
     state: Math.random().toString(36).slice(2),
   });
