@@ -139,12 +139,31 @@ router.get('/facebook/callback', async (req, res) => {
     }
     console.log('[FB OAuth] token 取得成功:', userToken.slice(0, 15) + '...');
 
-    // 取得此用戶管理的粉絲專頁清單（含各頁面的 Page Access Token）
+    // 1. 直接帳號底下的粉絲專頁（一般連結方式）
     const pagesRes = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
-      params: { access_token: userToken, fields: 'id,name,access_token' },
+      params: { access_token: userToken, fields: 'id,name,access_token', limit: 100 },
     });
-    const pages = pagesRes.data.data || [];
-    console.log('[FB OAuth] me/accounts 回傳頁面數:', pages.length, '| 完整回應:', JSON.stringify(pagesRes.data));
+    let pages = pagesRes.data.data || [];
+    console.log('[FB OAuth] me/accounts 頁面數:', pages.length);
+
+    // 2. 若為空，嘗試從 Business Manager 取得頁面
+    if (pages.length === 0) {
+      console.log('[FB OAuth] me/accounts 為空，嘗試從 Business Manager 取得...');
+      try {
+        const bizRes = await axios.get('https://graph.facebook.com/v18.0/me/businesses', {
+          params: { access_token: userToken, fields: 'id,name,owned_pages{id,name,access_token}', limit: 10 },
+        });
+        console.log('[FB OAuth] me/businesses 完整回應:', JSON.stringify(bizRes.data));
+        for (const biz of (bizRes.data.data || [])) {
+          const bizPages = biz.owned_pages?.data || [];
+          pages = pages.concat(bizPages);
+        }
+        console.log('[FB OAuth] Business Manager 合計頁面數:', pages.length);
+      } catch (bizErr) {
+        console.log('[FB OAuth] Business Manager 查詢失敗（可能無此權限）:', bizErr.response?.data?.error?.message);
+      }
+    }
+
     if (pages.length === 0) {
       return sendToOpener({ type: 'fb_error', error: '未找到可連結的粉絲專頁。請確認此 Facebook 帳號有「管理員」身份的粉絲專頁，並在授權時勾選所有權限。' });
     }
