@@ -86,6 +86,7 @@ router.get('/facebook/url', (req, res) => {
     redirect_uri: redirectUri,
     scope: 'pages_show_list,pages_messaging,pages_read_engagement,pages_manage_metadata',
     response_type: 'code',
+    auth_type: 'rerequest',   // 強制重新詢問所有權限（包含新增的 pages_show_list）
     state: Math.random().toString(36).slice(2),
   });
   res.json({ url: `https://www.facebook.com/v18.0/dialog/oauth?${params}` });
@@ -123,20 +124,35 @@ router.get('/facebook/callback', async (req, res) => {
 
   try {
     const redirectUri = `${BACKEND_URL || 'http://localhost:4000'}/api/auth/facebook/callback`;
+    console.log('[FB OAuth] 開始 token exchange | redirectUri:', redirectUri, '| FB_APP_ID:', FB_APP_ID ? FB_APP_ID.slice(0,6)+'...' : 'MISSING');
 
     // 以 code 換取用戶 Access Token
     const tokenRes = await axios.get('https://graph.facebook.com/v18.0/oauth/access_token', {
       params: { client_id: FB_APP_ID, client_secret: FB_APP_SECRET, redirect_uri: redirectUri, code },
     });
+    console.log('[FB OAuth] token exchange 回應 keys:', Object.keys(tokenRes.data));
+
     const userToken = tokenRes.data.access_token;
+    if (!userToken) {
+      console.error('[FB OAuth] access_token 為空！完整回應:', JSON.stringify(tokenRes.data));
+      return sendToOpener({ type: 'fb_error', error: `Token 交換失敗，回應格式異常: ${JSON.stringify(tokenRes.data)}` });
+    }
+    console.log('[FB OAuth] token 取得成功:', userToken.slice(0, 15) + '...');
 
     // 取得此用戶管理的粉絲專頁清單（含各頁面的 Page Access Token）
     const pagesRes = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
-      params: { access_token: userToken, fields: 'id,name,access_token,picture' },
+      params: { access_token: userToken, fields: 'id,name,access_token' },
     });
-    sendToOpener({ type: 'fb_pages', pages: pagesRes.data.data || [] });
+    const pages = pagesRes.data.data || [];
+    console.log('[FB OAuth] me/accounts 回傳頁面數:', pages.length, '| 完整回應:', JSON.stringify(pagesRes.data));
+    if (pages.length === 0) {
+      return sendToOpener({ type: 'fb_error', error: '未找到可連結的粉絲專頁。請確認此 Facebook 帳號有「管理員」身份的粉絲專頁，並在授權時勾選所有權限。' });
+    }
+    sendToOpener({ type: 'fb_pages', pages });
   } catch (err) {
-    const msg = err.response?.data?.error?.message || '取得粉絲專頁失敗';
+    const fbErr = err.response?.data?.error;
+    const msg = fbErr ? `Facebook 錯誤 ${fbErr.code}: ${fbErr.message}` : (err.message || '未知錯誤');
+    console.error('[FB OAuth] 發生錯誤:', err.response?.data || err.message);
     sendToOpener({ type: 'fb_error', error: msg });
   }
 });
