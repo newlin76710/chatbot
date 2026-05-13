@@ -139,33 +139,60 @@ router.get('/facebook/callback', async (req, res) => {
     }
     console.log('[FB OAuth] token 取得成功:', userToken.slice(0, 15) + '...');
 
-    // 1. 直接帳號底下的粉絲專頁（一般連結方式）
-    const pagesRes = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
-      params: { access_token: userToken, fields: 'id,name,access_token', limit: 100 },
-    });
-    let pages = pagesRes.data.data || [];
-    console.log('[FB OAuth] me/accounts 頁面數:', pages.length);
+    let pages = [];
 
-    // 2. 若為空，嘗試從 Business Manager 取得頁面
+    // 方式 1：me/accounts（傳統方式）
+    try {
+      const pagesRes = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
+        params: { access_token: userToken, fields: 'id,name,access_token', limit: 100 },
+      });
+      pages = pagesRes.data.data || [];
+      console.log('[FB OAuth] me/accounts 頁面數:', pages.length);
+    } catch (e) {
+      console.log('[FB OAuth] me/accounts 失敗:', e.response?.data?.error?.message);
+    }
+
+    // 方式 2：透過 debug_token 找出 token 被授權的具體頁面 ID（Facebook 新版權限機制）
     if (pages.length === 0) {
-      console.log('[FB OAuth] me/accounts 為空，嘗試從 Business Manager 取得...');
+      console.log('[FB OAuth] 改用 debug_token 方式取得授權頁面...');
       try {
-        const bizRes = await axios.get('https://graph.facebook.com/v18.0/me/businesses', {
-          params: { access_token: userToken, fields: 'id,name,owned_pages{id,name,access_token}', limit: 10 },
+        const debugRes = await axios.get('https://graph.facebook.com/debug_token', {
+          params: {
+            input_token: userToken,
+            access_token: `${FB_APP_ID}|${FB_APP_SECRET}`,
+          },
         });
-        console.log('[FB OAuth] me/businesses 完整回應:', JSON.stringify(bizRes.data));
-        for (const biz of (bizRes.data.data || [])) {
-          const bizPages = biz.owned_pages?.data || [];
-          pages = pages.concat(bizPages);
+        console.log('[FB OAuth] debug_token granular_scopes:', JSON.stringify(debugRes.data.data?.granular_scopes));
+
+        // 從 granular_scopes 中找到 pages_show_list 對應的 target_ids
+        const scopes = debugRes.data.data?.granular_scopes || [];
+        const pageIds = new Set();
+        for (const s of scopes) {
+          if (s.target_ids?.length) {
+            s.target_ids.forEach(id => pageIds.add(id));
+          }
         }
-        console.log('[FB OAuth] Business Manager 合計頁面數:', pages.length);
-      } catch (bizErr) {
-        console.log('[FB OAuth] Business Manager 查詢失敗（可能無此權限）:', bizErr.response?.data?.error?.message);
+        console.log('[FB OAuth] debug_token 找到頁面 IDs:', [...pageIds]);
+
+        // 用 user token 逐一取得每個頁面的資料與 page access token
+        for (const pageId of pageIds) {
+          try {
+            const pageRes = await axios.get(`https://graph.facebook.com/v18.0/${pageId}`, {
+              params: { access_token: userToken, fields: 'id,name,access_token' },
+            });
+            if (pageRes.data.access_token) pages.push(pageRes.data);
+          } catch (pe) {
+            console.log('[FB OAuth] 取得頁面', pageId, '失敗:', pe.response?.data?.error?.message);
+          }
+        }
+        console.log('[FB OAuth] debug_token 方式最終頁面數:', pages.length);
+      } catch (dbgErr) {
+        console.log('[FB OAuth] debug_token 失敗:', dbgErr.response?.data?.error?.message);
       }
     }
 
     if (pages.length === 0) {
-      return sendToOpener({ type: 'fb_error', error: '未找到可連結的粉絲專頁。請確認此 Facebook 帳號有「管理員」身份的粉絲專頁，並在授權時勾選所有權限。' });
+      return sendToOpener({ type: 'fb_error', error: '未找到可連結的粉絲專頁，請確認授權時已勾選所有權限並選擇粉絲專頁。' });
     }
     sendToOpener({ type: 'fb_pages', pages });
   } catch (err) {
