@@ -97,7 +97,6 @@ router.get('/facebook/callback', async (req, res) => {
   const { FB_APP_ID, FB_APP_SECRET, BACKEND_URL } = process.env;
 
   const sendToOpener = (data) => {
-    // helmet 預設 CSP 會擋 inline script，此 callback 頁需明確允許
     res.setHeader('Content-Security-Policy', "script-src 'unsafe-inline'; style-src 'unsafe-inline';");
     const json = JSON.stringify(data).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
     const isError = data.type === 'fb_error';
@@ -110,9 +109,12 @@ router.get('/facebook/callback', async (req, res) => {
 <script>
   (function(){
     var data = ${json};
-    if(window.opener){ window.opener.postMessage(data,'*'); }
-    setTimeout(function(){ window.close(); }, 300);
-    setTimeout(function(){ document.getElementById('msg').textContent='若視窗未關閉，請手動關閉此分頁'; }, 1500);
+    // 主要方式：localStorage storage event（跨視窗同源最可靠）
+    try { localStorage.setItem('_fb_oauth_result', JSON.stringify(data)); } catch(e){}
+    // 備用：postMessage
+    try { if(window.opener){ window.opener.postMessage(data, '*'); } } catch(e){}
+    setTimeout(function(){ window.close(); }, 400);
+    setTimeout(function(){ document.getElementById('msg').textContent='若視窗未關閉，請手動關閉此分頁'; }, 2000);
   })();
 \x3c/script></body></html>`);
   };

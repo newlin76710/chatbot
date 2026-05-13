@@ -778,44 +778,59 @@ export function ChannelsPage() {
 
   const connectFacebook = async () => {
     setFbConnecting(true);
+    // 清除上次殘留結果
+    localStorage.removeItem('_fb_oauth_result');
     try {
       const { data } = await api.get('/auth/facebook/url');
-      const popup = window.open(data.url, 'fb_auth', 'width=620,height=680,left=300,top=80');
+      window.open(data.url, 'fb_auth', 'width=620,height=680,left=300,top=80');
 
       let timer = null;
       let resolved = false;
 
-      const handler = (e) => {
-        if (!e.data?.type?.startsWith('fb_')) return;
+      const handleResult = (oauthData) => {
+        if (resolved) return;
         resolved = true;
         clearInterval(timer);
-        window.removeEventListener('message', handler);
+        window.removeEventListener('storage', storageHandler);
+        window.removeEventListener('message', msgHandler);
+        localStorage.removeItem('_fb_oauth_result');
         setFbConnecting(false);
-        if (e.data.type === 'fb_pages') {
-          if (e.data.pages.length === 0) {
+        if (oauthData.type === 'fb_pages') {
+          if (!oauthData.pages?.length) {
             toast.error('此帳號沒有可連結的粉絲專頁');
           } else {
-            setFbPages(e.data.pages);
+            setFbPages(oauthData.pages);
             setShowFbPageSelect(true);
           }
         } else {
-          toast.error(e.data.error || 'Facebook 連結失敗');
+          toast.error(oauthData.error || 'Facebook 連結失敗');
         }
       };
-      window.addEventListener('message', handler);
 
-      // popup 關閉時若尚未收到 postMessage，延遲 800ms 再清理（避免 race condition）
-      timer = setInterval(() => {
-        if (popup?.closed && !resolved) {
-          clearInterval(timer);
-          setTimeout(() => {
-            if (!resolved) {
-              window.removeEventListener('message', handler);
-              setFbConnecting(false);
-            }
-          }, 800);
+      // 主要：localStorage storage event（最可靠，跨視窗同源）
+      const storageHandler = (e) => {
+        if (e.key !== '_fb_oauth_result' || !e.newValue) return;
+        handleResult(JSON.parse(e.newValue));
+      };
+      window.addEventListener('storage', storageHandler);
+
+      // 備用：postMessage
+      const msgHandler = (e) => {
+        if (!e.data?.type?.startsWith('fb_')) return;
+        handleResult(e.data);
+      };
+      window.addEventListener('message', msgHandler);
+
+      // 120 秒後逾時清理
+      timer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          window.removeEventListener('storage', storageHandler);
+          window.removeEventListener('message', msgHandler);
+          localStorage.removeItem('_fb_oauth_result');
+          setFbConnecting(false);
         }
-      }, 500);
+      }, 120000);
     } catch {
       toast.error('無法取得 Facebook 授權網址，請確認平台已設定 FB_APP_ID');
       setFbConnecting(false);
