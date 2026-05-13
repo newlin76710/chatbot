@@ -62,7 +62,13 @@ app.use('/api/campaigns', campaignRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/workspaces', workspaceRoutes);
 // 提供上傳檔案的靜態存取（LINE/Messenger 需要公開 HTTPS URL）
-app.use('/uploads', require('express').static('/app/uploads'));
+// Cross-Origin-Resource-Policy: cross-origin 讓 LINE OA Manager 等跨來源頁面能正常顯示圖片
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  next();
+}, require('express').static('/app/uploads'));
 app.use('/webhook', webhookRoutes);
 
 // 導流短連結 /c/:code — 記錄點擊後跳轉 LINE
