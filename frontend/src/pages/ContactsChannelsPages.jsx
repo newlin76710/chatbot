@@ -770,6 +770,66 @@ export function ChannelsPage() {
   const [form, setForm] = useState({ name: '', platform: 'line', accessToken: '', channelSecret: '' });
   const [syncingIds, setSyncingIds] = useState(new Set());
 
+  // Facebook OAuth 連結狀態
+  const [fbConnecting, setFbConnecting] = useState(false);
+  const [fbPages, setFbPages] = useState([]);
+  const [showFbPageSelect, setShowFbPageSelect] = useState(false);
+  const [creatingFbChannel, setCreatingFbChannel] = useState(false);
+
+  const connectFacebook = async () => {
+    setFbConnecting(true);
+    try {
+      const { data } = await api.get('/auth/facebook/url');
+      const popup = window.open(data.url, 'fb_auth', 'width=620,height=680,left=300,top=80');
+
+      const handler = (e) => {
+        if (!e.data?.type?.startsWith('fb_')) return;
+        window.removeEventListener('message', handler);
+        setFbConnecting(false);
+        if (e.data.type === 'fb_pages') {
+          if (e.data.pages.length === 0) {
+            toast.error('此帳號沒有可連結的粉絲專頁');
+          } else {
+            setFbPages(e.data.pages);
+            setShowFbPageSelect(true);
+          }
+        } else {
+          toast.error(e.data.error || 'Facebook 連結失敗');
+        }
+      };
+      window.addEventListener('message', handler);
+
+      const timer = setInterval(() => {
+        if (popup?.closed) {
+          clearInterval(timer);
+          window.removeEventListener('message', handler);
+          setFbConnecting(false);
+        }
+      }, 1000);
+    } catch {
+      toast.error('無法取得 Facebook 授權網址，請確認平台已設定 FB_APP_ID');
+      setFbConnecting(false);
+    }
+  };
+
+  const handleSelectFbPage = async (page) => {
+    setCreatingFbChannel(true);
+    try {
+      await createChannel({
+        name: page.name,
+        platform: 'messenger',
+        credentials: { accessToken: page.access_token, pageId: page.id },
+      });
+      toast.success(`已成功連結「${page.name}」！`);
+      setShowFbPageSelect(false);
+      setFbPages([]);
+      setShowForm(false);
+    } catch {
+      toast.error('建立頻道失敗');
+    }
+    setCreatingFbChannel(false);
+  };
+
   const syncLineFollowers = async (channelId) => {
     setSyncingIds(prev => new Set([...prev, channelId]));
     try {
@@ -881,36 +941,96 @@ export function ChannelsPage() {
       {showForm && (
         <div style={modalStyle}>
           <div style={cardStyle}>
-            <h2 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700 }}>新增頻道</h2>
-            <form onSubmit={handleSubmit}>
-              {[
-                { key: 'name', label: '頻道名稱', placeholder: '我的 LINE 機器人' },
-                { key: 'accessToken', label: '頻道存取金鑰', placeholder: '長效存取金鑰' },
-                { key: 'channelSecret', label: '頻道密鑰', placeholder: '頻道密鑰 / App 密鑰' },
-              ].map(({ key, label, placeholder }) => (
-                <div key={key} style={{ marginBottom: 14 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>{label}</label>
-                  <input style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, boxSizing: 'border-box', outline: 'none' }}
-                    value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                    placeholder={placeholder} required />
+            <h2 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 700 }}>新增頻道</h2>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>平台</label>
+              <select style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, boxSizing: 'border-box', outline: 'none' }}
+                value={form.platform} onChange={e => setForm(f => ({ ...f, platform: e.target.value }))}>
+                <option value="line">LINE</option>
+                <option value="messenger">Facebook Messenger</option>
+                <option value="instagram">Instagram</option>
+              </select>
+            </div>
+
+            {/* LINE：手動填入 Token */}
+            {form.platform === 'line' && (
+              <form onSubmit={handleSubmit}>
+                {[
+                  { key: 'name', label: '頻道名稱', placeholder: '我的 LINE 機器人' },
+                  { key: 'accessToken', label: '頻道存取金鑰', placeholder: 'Channel Access Token' },
+                  { key: 'channelSecret', label: '頻道密鑰', placeholder: 'Channel Secret' },
+                ].map(({ key, label, placeholder }) => (
+                  <div key={key} style={{ marginBottom: 14 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>{label}</label>
+                    <input style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, boxSizing: 'border-box', outline: 'none' }}
+                      value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                      placeholder={placeholder} required />
+                  </div>
+                ))}
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+                  <button type="button" onClick={() => setShowForm(false)}
+                    style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #E2E8F0', background: 'none', cursor: 'pointer', fontSize: 13 }}>取消</button>
+                  <button type="submit"
+                    style={{ padding: '8px 18px', borderRadius: 8, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>建立</button>
                 </div>
+              </form>
+            )}
+
+            {/* Messenger / Instagram：Facebook OAuth 一鍵連結 */}
+            {(form.platform === 'messenger' || form.platform === 'instagram') && (
+              <div>
+                <div style={{ background: '#F0F2FF', borderRadius: 10, padding: '14px 16px', marginBottom: 20, fontSize: 13, color: '#374151', lineHeight: 1.6 }}>
+                  點擊下方按鈕，透過 Facebook 帳號授權，系統會自動取得您管理的粉絲專頁並完成連結，無需手動複製 Token。
+                </div>
+                <button
+                  onClick={connectFacebook}
+                  disabled={fbConnecting}
+                  style={{ width: '100%', padding: '11px 0', borderRadius: 9, border: 'none', background: fbConnecting ? '#94A3B8' : '#1877F2', color: '#fff', fontSize: 14, fontWeight: 700, cursor: fbConnecting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                  {fbConnecting ? '連結中…' : '用 Facebook 帳號連結粉絲專頁'}
+                </button>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
+                  <button type="button" onClick={() => setShowForm(false)}
+                    style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #E2E8F0', background: 'none', cursor: 'pointer', fontSize: 13 }}>取消</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Facebook 粉絲專頁選擇 Modal */}
+      {showFbPageSelect && (
+        <div style={modalStyle}>
+          <div style={{ ...cardStyle, width: 480 }}>
+            <h2 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 700 }}>選擇要連結的粉絲專頁</h2>
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: '#64748B' }}>請選擇要與此工作區連結的 Facebook 粉絲專頁：</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 360, overflowY: 'auto' }}>
+              {fbPages.map(page => (
+                <button
+                  key={page.id}
+                  onClick={() => handleSelectFbPage(page)}
+                  disabled={creatingFbChannel}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', cursor: creatingFbChannel ? 'not-allowed' : 'pointer', textAlign: 'left', transition: 'border-color 0.15s' }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = '#6366F1'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = '#E2E8F0'}
+                >
+                  {page.picture?.data?.url
+                    ? <img src={page.picture.data.url} alt="" style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0 }} />
+                    : <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>🔵</div>
+                  }
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A' }}>{page.name}</div>
+                    <div style={{ fontSize: 11, color: '#94A3B8', fontFamily: 'monospace' }}>ID: {page.id}</div>
+                  </div>
+                  <span style={{ marginLeft: 'auto', fontSize: 18, color: '#CBD5E1' }}>›</span>
+                </button>
               ))}
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>平台</label>
-                <select style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, boxSizing: 'border-box', outline: 'none' }}
-                  value={form.platform} onChange={e => setForm(f => ({ ...f, platform: e.target.value }))}>
-                  <option value="line">LINE</option>
-                  <option value="messenger">Facebook Messenger</option>
-                  <option value="instagram">Instagram</option>
-                </select>
-              </div>
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setShowForm(false)}
-                  style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #E2E8F0', background: 'none', cursor: 'pointer', fontSize: 13 }}>取消</button>
-                <button type="submit"
-                  style={{ padding: '8px 18px', borderRadius: 8, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>建立</button>
-              </div>
-            </form>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+              <button onClick={() => { setShowFbPageSelect(false); setFbPages([]); }}
+                style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #E2E8F0', background: 'none', cursor: 'pointer', fontSize: 13 }}>取消</button>
+            </div>
           </div>
         </div>
       )}

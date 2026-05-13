@@ -191,11 +191,12 @@ router.post('/messenger/:channelId', async (req, res) => {
     const channel = await Channel.findById(req.params.channelId);
     if (!channel || channel.platform !== 'messenger') return;
 
-    // Verify app secret
+    // 驗證 App Secret 簽章（優先用頻道設定，其次用平台全域 FB_APP_SECRET）
     const sig = req.headers['x-hub-signature-256'];
-    if (sig) {
+    const appSecret = channel.credentials.channelSecret || process.env.FB_APP_SECRET;
+    if (sig && appSecret) {
       const expected = 'sha256=' + crypto
-        .createHmac('sha256', channel.credentials.channelSecret)
+        .createHmac('sha256', appSecret)
         .update(JSON.stringify(req.body))
         .digest('hex');
       if (sig !== expected) return;
@@ -317,11 +318,12 @@ router.post('/instagram/:channelId', async (req, res) => {
     const channel = await Channel.findById(req.params.channelId);
     if (!channel || channel.platform !== 'instagram') return;
 
-    // 驗證 App Secret 簽章
+    // 驗證 App Secret 簽章（優先用頻道設定，其次用平台全域 FB_APP_SECRET）
     const sig = req.headers['x-hub-signature-256'];
-    if (sig) {
+    const igSecret = channel.credentials.channelSecret || process.env.FB_APP_SECRET;
+    if (sig && igSecret) {
       const expected = 'sha256=' + crypto
-        .createHmac('sha256', channel.credentials.channelSecret)
+        .createHmac('sha256', igSecret)
         .update(JSON.stringify(req.body))
         .digest('hex');
       if (sig !== expected) return;
