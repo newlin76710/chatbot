@@ -67,6 +67,7 @@ const channelSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
   webhookUrl: String,
   profilePicture: String,
+  tags: [{ type: String }],
 }, { timestamps: true });
 channelSchema.index({ workspaces: 1 });
 

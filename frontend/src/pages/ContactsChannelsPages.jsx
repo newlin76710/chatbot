@@ -73,6 +73,12 @@ export function ContactsPage() {
   const [manualTime, setManualTime] = useState('');
   const [savingManual, setSavingManual] = useState(false);
 
+  // 標籤管理
+  const [showTagManager, setShowTagManager] = useState(false);
+  const [newTagName, setNewTagName] = useState('');
+  const [editingTag, setEditingTag] = useState(null);   // { original, draft }
+  const [tagSaving, setTagSaving] = useState(false);
+
   const historyBottomRef = useRef(null);
   const selectedRef = useRef(null);
   selectedRef.current = selected;
@@ -330,12 +336,151 @@ export function ContactsPage() {
     }
   };
 
+  const handleCreateTag = async () => {
+    if (!newTagName.trim()) return;
+    setTagSaving(true);
+    try {
+      await api.post('/contacts/tags', { channelId: activeChannelId, name: newTagName.trim() });
+      setAllTags(prev => [...new Set([...prev, newTagName.trim()])].sort());
+      setNewTagName('');
+      toast.success('標籤已建立');
+    } catch (err) {
+      toast.error(err.response?.data?.error || '建立失敗');
+    }
+    setTagSaving(false);
+  };
+
+  const handleRenameTag = async () => {
+    if (!editingTag || !editingTag.draft.trim() || editingTag.draft === editingTag.original) {
+      setEditingTag(null);
+      return;
+    }
+    setTagSaving(true);
+    try {
+      await api.patch(`/contacts/tags/${encodeURIComponent(editingTag.original)}`, {
+        channelId: activeChannelId,
+        newName: editingTag.draft.trim(),
+      });
+      const newName = editingTag.draft.trim();
+      setAllTags(prev => prev.map(t => t === editingTag.original ? newName : t).sort());
+      if (filterTag === editingTag.original) setFilterTag(newName);
+      setEditingTag(null);
+      toast.success('標籤已更名');
+    } catch (err) {
+      toast.error(err.response?.data?.error || '更名失敗');
+    }
+    setTagSaving(false);
+  };
+
+  const handleDeleteTag = async (tag) => {
+    if (!window.confirm(`確定要刪除標籤「#${tag}」？此標籤將從所有聯絡人移除。`)) return;
+    try {
+      await api.delete(`/contacts/tags/${encodeURIComponent(tag)}?channelId=${activeChannelId}`);
+      setAllTags(prev => prev.filter(t => t !== tag));
+      if (filterTag === tag) setFilterTag('');
+      toast.success('標籤已刪除');
+    } catch (err) {
+      toast.error(err.response?.data?.error || '刪除失敗');
+    }
+  };
+
   return (
     <div style={{ padding: 32 }}>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#0F172A' }}>聯絡人</h1>
-        <p style={{ margin: '4px 0 0', color: '#64748B', fontSize: 14 }}>{total.toLocaleString()} 位訂閱者</p>
+      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#0F172A' }}>聯絡人</h1>
+          <p style={{ margin: '4px 0 0', color: '#64748B', fontSize: 14 }}>{total.toLocaleString()} 位訂閱者</p>
+        </div>
+        <button
+          onClick={() => { setShowTagManager(true); setNewTagName(''); setEditingTag(null); }}
+          disabled={!activeChannelId}
+          style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid #C7D2FE', background: '#EEF2FF', color: '#6366F1', fontSize: 13, fontWeight: 600, cursor: activeChannelId ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 6 }}>
+          🏷 標籤管理
+        </button>
       </div>
+
+      {/* 標籤管理 Modal */}
+      {showTagManager && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 28, width: 480, maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#0F172A' }}>標籤管理</h2>
+              <button onClick={() => setShowTagManager(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#94A3B8', lineHeight: 1 }}>×</button>
+            </div>
+
+            {/* 新增標籤 */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 8 }}>新增標籤</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  value={newTagName}
+                  onChange={e => setNewTagName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleCreateTag(); }}
+                  placeholder="輸入標籤名稱..."
+                  style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, outline: 'none' }}
+                />
+                <button
+                  onClick={handleCreateTag}
+                  disabled={tagSaving || !newTagName.trim()}
+                  style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: newTagName.trim() ? '#6366F1' : '#E2E8F0', color: '#fff', fontSize: 13, fontWeight: 600, cursor: newTagName.trim() ? 'pointer' : 'not-allowed' }}>
+                  新增
+                </button>
+              </div>
+            </div>
+
+            {/* 標籤列表 */}
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 10 }}>
+                所有標籤
+                <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 400, color: '#94A3B8' }}>（共 {allTags.length} 個）</span>
+              </div>
+              {allTags.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '28px 0', color: '#94A3B8', fontSize: 13 }}>尚無任何標籤</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {allTags.map(tag => (
+                    <div key={tag} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, border: '1px solid #E2E8F0', background: '#FAFBFC' }}>
+                      {editingTag?.original === tag ? (
+                        <>
+                          <input
+                            autoFocus
+                            value={editingTag.draft}
+                            onChange={e => setEditingTag(prev => ({ ...prev, draft: e.target.value }))}
+                            onKeyDown={e => { if (e.key === 'Enter') handleRenameTag(); if (e.key === 'Escape') setEditingTag(null); }}
+                            style={{ flex: 1, padding: '4px 8px', borderRadius: 6, border: '1.5px solid #6366F1', fontSize: 13, outline: 'none' }}
+                          />
+                          <button onClick={handleRenameTag} disabled={tagSaving}
+                            style={{ padding: '4px 12px', borderRadius: 6, border: 'none', background: '#6366F1', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
+                            {tagSaving ? '…' : '儲存'}
+                          </button>
+                          <button onClick={() => setEditingTag(null)}
+                            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #E2E8F0', background: '#fff', color: '#64748B', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
+                            取消
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ flex: 1, fontSize: 13, color: '#374151', fontWeight: 500 }}>#{tag}</span>
+                          <button
+                            onClick={() => setEditingTag({ original: tag, draft: tag })}
+                            style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #E2E8F0', background: '#fff', color: '#6366F1', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
+                            重新命名
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTag(tag)}
+                            style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#DC2626', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
+                            刪除
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 篩選列 */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>

@@ -149,12 +149,91 @@ router.get('/export', auth, workspaceAuth('viewer'), async (req, res) => {
   }
 });
 
-// GET /api/contacts/tags/list
+// GET /api/contacts/tags/list — 合併頻道標籤庫 + 聯絡人標籤
 router.get('/tags/list', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
     const { channelId } = req.query;
-    const tags = await Contact.distinct('tags', { channel: channelId });
-    res.json({ tags });
+    const [contactTags, channel] = await Promise.all([
+      Contact.distinct('tags', { channel: channelId }),
+      Channel.findById(channelId).select('tags'),
+    ]);
+    const merged = [...new Set([...(channel?.tags || []), ...contactTags])].sort();
+    res.json({ tags: merged });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/contacts/tags — 建立新標籤（存入頻道標籤庫）
+router.post('/tags', auth, workspaceAuth('editor'), async (req, res) => {
+  try {
+    const { channelId, name } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: '標籤名稱不可空白' });
+    const tag = name.trim();
+    const channel = await Channel.findOneAndUpdate(
+      { _id: channelId, $or: [{ workspaces: req.workspace._id }, { workspace: req.workspace._id }] },
+      { $addToSet: { tags: tag } },
+      { new: true }
+    );
+    if (!channel) return res.status(404).json({ error: '找不到此頻道' });
+    res.json({ ok: true, tag });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/contacts/tags/:tag — 重新命名標籤（更新所有聯絡人 + 頻道標籤庫）
+router.patch('/tags/:tag', auth, workspaceAuth('editor'), async (req, res) => {
+  try {
+    const { channelId, newName } = req.body;
+    const oldTag = decodeURIComponent(req.params.tag);
+    if (!newName?.trim()) return res.status(400).json({ error: '新標籤名稱不可空白' });
+    const newTag = newName.trim();
+    if (oldTag === newTag) return res.json({ ok: true });
+
+    const channel = await Channel.findOne({
+      _id: channelId,
+      $or: [{ workspaces: req.workspace._id }, { workspace: req.workspace._id }],
+    });
+    if (!channel) return res.status(404).json({ error: '找不到此頻道' });
+
+    await Promise.all([
+      // 更新所有有此標籤的聯絡人
+      Contact.updateMany(
+        { channel: channelId, tags: oldTag },
+        { $set: { 'tags.$[elem]': newTag } },
+        { arrayFilters: [{ elem: { $eq: oldTag } }] }
+      ),
+      // 更新頻道標籤庫
+      Channel.updateOne(
+        { _id: channelId },
+        { $pull: { tags: oldTag } }
+      ).then(() =>
+        Channel.updateOne({ _id: channelId }, { $addToSet: { tags: newTag } })
+      ),
+    ]);
+    res.json({ ok: true, oldTag, newTag });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/contacts/tags/:tag — 刪除標籤（從所有聯絡人 + 頻道標籤庫移除）
+router.delete('/tags/:tag', auth, workspaceAuth('editor'), async (req, res) => {
+  try {
+    const { channelId } = req.query;
+    const tag = decodeURIComponent(req.params.tag);
+    const channel = await Channel.findOne({
+      _id: channelId,
+      $or: [{ workspaces: req.workspace._id }, { workspace: req.workspace._id }],
+    });
+    if (!channel) return res.status(404).json({ error: '找不到此頻道' });
+
+    await Promise.all([
+      Contact.updateMany({ channel: channelId, tags: tag }, { $pull: { tags: tag } }),
+      Channel.updateOne({ _id: channelId }, { $pull: { tags: tag } }),
+    ]);
+    res.json({ ok: true, tag });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
