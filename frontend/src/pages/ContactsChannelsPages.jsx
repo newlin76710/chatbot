@@ -26,6 +26,8 @@ const FIELD_LABELS = {
   note: '備註',
 };
 
+const DEFAULT_SURVEY_FIELDS = ['name', 'gender', 'maritalStatus', 'city', 'birthYear', 'education', 'occupation', 'phoneNumber'];
+
 function fieldLabel(key) {
   return FIELD_LABELS[key] || key;
 }
@@ -43,6 +45,7 @@ export function ContactsPage() {
   const [dateToInput, setDateToInput] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [limit, setLimit] = useState(50);
   const [sortBy, setSortBy] = useState('lastInteractedAt');
   const [sortDir, setSortDir] = useState('desc');
   const [allTags, setAllTags] = useState([]);
@@ -259,7 +262,7 @@ export function ContactsPage() {
 
   useEffect(() => {
     if (!channelsReady || !activeChannelId) return;
-    const params = new URLSearchParams({ channelId: activeChannelId, page, limit: 50 });
+    const params = new URLSearchParams({ channelId: activeChannelId, page, limit });
     if (search) params.append('search', search);
     if (filterTag) params.append('tag', filterTag);
     if (dateFrom) { params.append('dateField', dateField); params.append('dateFrom', dateFrom); }
@@ -267,7 +270,7 @@ export function ContactsPage() {
     params.append('sortBy', sortBy);
     params.append('sortDir', sortDir);
     api.get(`/contacts?${params}`).then(r => { setContacts(r.data.contacts); setTotal(r.data.total); });
-  }, [channelsReady, activeChannelId, page, search, filterTag, dateFrom, dateTo, dateField, sortBy, sortDir]);
+  }, [channelsReady, activeChannelId, page, limit, search, filterTag, dateFrom, dateTo, dateField, sortBy, sortDir]);
 
   const handleTagAction = async (contactId, type, tag) => {
     try {
@@ -370,6 +373,17 @@ export function ContactsPage() {
             清除
           </button>
         )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <span style={{ fontSize: 12, color: '#64748B', whiteSpace: 'nowrap' }}>每頁</span>
+          <select
+            value={limit}
+            onChange={e => { setLimit(Number(e.target.value)); setPage(1); }}
+            style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, outline: 'none', cursor: 'pointer' }}>
+            <option value={20}>20 筆</option>
+            <option value={50}>50 筆</option>
+            <option value={100}>100 筆</option>
+          </select>
+        </div>
         <button
           onClick={handleExportCSV}
           disabled={!activeChannelId}
@@ -460,6 +474,31 @@ export function ContactsPage() {
               ))}
             </tbody>
           </table>
+          {/* 分頁控制 */}
+          {total > limit && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: '1px solid #F1F5F9' }}>
+              <span style={{ fontSize: 12, color: '#94A3B8' }}>
+                第 {((page - 1) * limit) + 1}–{Math.min(page * limit, total)} 筆，共 {total.toLocaleString()} 筆
+              </span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  style={{ padding: '6px 14px', borderRadius: 7, border: '1.5px solid #E2E8F0', background: page <= 1 ? '#F8F9FC' : '#fff', color: page <= 1 ? '#CBD5E1' : '#374151', fontSize: 13, cursor: page <= 1 ? 'default' : 'pointer', fontWeight: 500 }}>
+                  ← 上一頁
+                </button>
+                <span style={{ padding: '6px 12px', fontSize: 13, color: '#374151', fontWeight: 600 }}>
+                  {page} / {Math.ceil(total / limit)}
+                </span>
+                <button
+                  onClick={() => setPage(p => Math.min(Math.ceil(total / limit), p + 1))}
+                  disabled={page >= Math.ceil(total / limit)}
+                  style={{ padding: '6px 14px', borderRadius: 7, border: '1.5px solid #E2E8F0', background: page >= Math.ceil(total / limit) ? '#F8F9FC' : '#fff', color: page >= Math.ceil(total / limit) ? '#CBD5E1' : '#374151', fontSize: 13, cursor: page >= Math.ceil(total / limit) ? 'default' : 'pointer', fontWeight: 500 }}>
+                  下一頁 →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 詳情面板：左資料 + 右對話紀錄 */}
@@ -528,7 +567,11 @@ export function ContactsPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>問卷資料</div>
                     {!editingFields
-                      ? <button onClick={() => { setEditingFields(true); setFieldDraft(selected.customFields || {}); }}
+                      ? <button onClick={() => {
+                            setEditingFields(true);
+                            const defaults = Object.fromEntries(DEFAULT_SURVEY_FIELDS.map(k => [k, '']));
+                            setFieldDraft({ ...defaults, ...(selected.customFields || {}) });
+                          }}
                           style={{ fontSize: 11, color: '#6366F1', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>編輯</button>
                       : <div style={{ display: 'flex', gap: 6 }}>
                           <button onClick={() => setEditingFields(false)}
@@ -540,30 +583,45 @@ export function ContactsPage() {
                         </div>
                     }
                   </div>
-                  {!editingFields ? (
-                    Object.keys(selected.customFields || {}).length > 0 ? (
+                  {!editingFields ? (() => {
+                    const cf = selected.customFields || {};
+                    const defaults = Object.fromEntries(DEFAULT_SURVEY_FIELDS.map(k => [k, '']));
+                    const viewFields = { ...defaults, ...cf };
+                    const extraKeys = Object.keys(cf).filter(k => !DEFAULT_SURVEY_FIELDS.includes(k));
+                    return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                        {Object.entries(selected.customFields).map(([key, value]) => (
+                        {DEFAULT_SURVEY_FIELDS.map(key => (
+                          <div key={key} style={{ background: '#F8F9FC', borderRadius: 7, padding: '6px 10px' }}>
+                            <div style={{ fontSize: 10, fontWeight: 600, color: '#94A3B8', marginBottom: 1 }}>{fieldLabel(key)}</div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: viewFields[key] ? '#0F172A' : '#CBD5E1', wordBreak: 'break-word' }}>
+                              {viewFields[key] ? String(viewFields[key]) : '—'}
+                            </div>
+                          </div>
+                        ))}
+                        {extraKeys.map(key => (
                           <div key={key} style={{ background: '#F8F9FC', borderRadius: 7, padding: '6px 10px' }}>
                             <div style={{ fontSize: 10, fontWeight: 600, color: '#94A3B8', marginBottom: 1 }}>
-                              {fieldLabel(key)}{FIELD_LABELS[key] ? <span style={{ fontWeight: 400, marginLeft: 3, color: '#CBD5E1' }}>({key})</span> : null}
+                              {fieldLabel(key)}<span style={{ fontWeight: 400, marginLeft: 3, color: '#CBD5E1' }}>({key})</span>
                             </div>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: '#0F172A', wordBreak: 'break-word' }}>{String(value ?? '—')}</div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: '#0F172A', wordBreak: 'break-word' }}>{String(cf[key] ?? '—')}</div>
                           </div>
                         ))}
                       </div>
-                    ) : (
-                      <div style={{ textAlign: 'center', padding: '14px 0', background: '#F8F9FC', borderRadius: 8 }}>
-                        <div style={{ fontSize: 11, color: '#94A3B8' }}>尚未收集到任何資料</div>
-                      </div>
-                    )
-                  ) : (
+                    );
+                  })() : (
                     <div>
-                      {Object.entries(fieldDraft).map(([key, value]) => (
+                      {DEFAULT_SURVEY_FIELDS.map(key => (
+                        <div key={key} style={{ marginBottom: 7 }}>
+                          <div style={{ fontSize: 10, color: '#94A3B8', marginBottom: 2 }}>{fieldLabel(key)}</div>
+                          <input style={{ ...inputSt }} value={fieldDraft[key] ?? ''}
+                            onChange={e => setFieldDraft(prev => ({ ...prev, [key]: e.target.value }))} />
+                        </div>
+                      ))}
+                      {Object.keys(fieldDraft).filter(k => !DEFAULT_SURVEY_FIELDS.includes(k)).map(key => (
                         <div key={key} style={{ marginBottom: 7 }}>
                           <div style={{ fontSize: 10, color: '#94A3B8', marginBottom: 2 }}>{fieldLabel(key)}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <input style={{ ...inputSt, flex: 1 }} value={value ?? ''}
+                            <input style={{ ...inputSt, flex: 1 }} value={fieldDraft[key] ?? ''}
                               onChange={e => setFieldDraft(prev => ({ ...prev, [key]: e.target.value }))} />
                             <button onClick={() => handleDeleteField(key)}
                               style={{ background: 'none', border: 'none', color: '#F43F5E', cursor: 'pointer', fontSize: 16, flexShrink: 0, lineHeight: 1 }}>×</button>
@@ -586,17 +644,34 @@ export function ContactsPage() {
                 {/* 標籤 */}
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>標籤</div>
+                  {/* 已套用的標籤 */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
                     {selected.tags?.map(t => (
-                      <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#F1F5F9', color: '#475569' }}>
+                      <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#EEF2FF', color: '#6366F1', border: '1px solid #C7D2FE' }}>
                         #{t}
                         <button onClick={() => handleTagAction(selected._id, 'remove', t)}
                           style={{ background: 'none', border: 'none', color: '#F43F5E', cursor: 'pointer', padding: 0, fontSize: 12, lineHeight: 1 }}>×</button>
                       </span>
                     ))}
                   </div>
+                  {/* 可新增的現有標籤 */}
+                  {allTags.filter(t => !selected.tags?.includes(t)).length > 0 && (
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 10, color: '#94A3B8', marginBottom: 5 }}>點擊新增標籤：</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {allTags.filter(t => !selected.tags?.includes(t)).map(t => (
+                          <span key={t}
+                            onClick={() => handleTagAction(selected._id, 'add', t)}
+                            style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#F8F9FC', color: '#94A3B8', border: '1px dashed #CBD5E1', cursor: 'pointer' }}>
+                            + #{t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* 輸入新標籤 */}
                   <input style={{ width: '100%', padding: '5px 8px', borderRadius: 6, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
-                    placeholder="輸入標籤後按 Enter 新增..."
+                    placeholder="輸入新標籤後按 Enter..."
                     onKeyDown={e => {
                       if (e.key === 'Enter' && e.target.value.trim()) {
                         handleTagAction(selected._id, 'add', e.target.value.trim());
