@@ -55,7 +55,7 @@ services:
 
   cloudflared:
     image: cloudflare/cloudflared:latest
-    command: tunnel --no-autoupdate run --loglevel debug --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    command: tunnel --loglevel debug --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
