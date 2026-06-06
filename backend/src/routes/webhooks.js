@@ -195,11 +195,15 @@ router.post('/messenger/:channelId', async (req, res) => {
     const sig = req.headers['x-hub-signature-256'];
     const appSecret = channel.credentials.channelSecret || process.env.FB_APP_SECRET;
     if (sig && appSecret) {
+      const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
       const expected = 'sha256=' + crypto
         .createHmac('sha256', appSecret)
-        .update(JSON.stringify(req.body))
+        .update(rawBody)
         .digest('hex');
-      if (sig !== expected) return;
+      if (sig !== expected) {
+        console.warn('[Messenger] 簽章驗證失敗，channelId:', req.params.channelId);
+        return;
+      }
     }
 
     const { entry } = req.body;
@@ -322,11 +326,15 @@ router.post('/instagram/:channelId', async (req, res) => {
     const sig = req.headers['x-hub-signature-256'];
     const igSecret = channel.credentials.channelSecret || process.env.FB_APP_SECRET;
     if (sig && igSecret) {
+      const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
       const expected = 'sha256=' + crypto
         .createHmac('sha256', igSecret)
-        .update(JSON.stringify(req.body))
+        .update(rawBody)
         .digest('hex');
-      if (sig !== expected) return;
+      if (sig !== expected) {
+        console.warn('[Instagram] 簽章驗證失敗，channelId:', req.params.channelId);
+        return;
+      }
     }
 
     const { entry } = req.body;
