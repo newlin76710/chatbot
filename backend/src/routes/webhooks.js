@@ -186,14 +186,23 @@ router.get('/messenger/:channelId', async (req, res) => {
 
 router.post('/messenger/:channelId', async (req, res) => {
   res.status(200).send('EVENT_RECEIVED');
+  console.log('[Messenger] 收到 webhook POST, channelId:', req.params.channelId);
 
   try {
     const channel = await Channel.findById(req.params.channelId);
-    if (!channel || channel.platform !== 'messenger') return;
+    if (!channel) {
+      console.warn('[Messenger] 找不到頻道 ID:', req.params.channelId);
+      return;
+    }
+    if (channel.platform !== 'messenger') {
+      console.warn('[Messenger] 頻道平台不是 messenger:', channel.platform);
+      return;
+    }
 
     // 驗證 App Secret 簽章（優先用頻道設定，其次用平台全域 FB_APP_SECRET）
     const sig = req.headers['x-hub-signature-256'];
     const appSecret = channel.credentials.channelSecret || process.env.FB_APP_SECRET;
+    console.log('[Messenger] 簽章驗證 sig:', sig ? sig.slice(0, 20) + '...' : '無', '| appSecret:', appSecret ? '有設定' : '未設定');
     if (sig && appSecret) {
       const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
       const expected = 'sha256=' + crypto
@@ -201,12 +210,16 @@ router.post('/messenger/:channelId', async (req, res) => {
         .update(rawBody)
         .digest('hex');
       if (sig !== expected) {
-        console.warn('[Messenger] 簽章驗證失敗，channelId:', req.params.channelId);
+        console.warn('[Messenger] 簽章驗證失敗 received:', sig, 'expected:', expected);
         return;
       }
+      console.log('[Messenger] 簽章驗證通過');
+    } else {
+      console.log('[Messenger] 跳過簽章驗證 (sig 或 appSecret 缺失)');
     }
 
     const { entry } = req.body;
+    console.log('[Messenger] entry 數量:', entry?.length, '| body:', JSON.stringify(req.body).slice(0, 200));
     for (const e of entry) {
       for (const messaging of (e.messaging || [])) {
         await handleMessengerEvent(messaging, channel);
