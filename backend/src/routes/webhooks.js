@@ -170,16 +170,24 @@ async function handleLineEvent(event, channel) {
 // ─── Facebook Messenger Webhook ───────────────────────────────
 // Verify challenge
 router.get('/messenger/:channelId', async (req, res) => {
+  console.log('[Messenger] 收到 GET 驗證, channelId:', req.params.channelId, '| IP:', req.ip, '| UA:', req.headers['user-agent']);
   const channel = await Channel.findById(req.params.channelId);
-  if (!channel) return res.sendStatus(404);
+  if (!channel) {
+    console.warn('[Messenger] GET 驗證：找不到頻道');
+    return res.sendStatus(404);
+  }
 
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
+  console.log('[Messenger] GET 驗證 mode:', mode, '| token match:', token === channel.credentials.verifyToken);
+
   if (mode === 'subscribe' && token === channel.credentials.verifyToken) {
+    console.log('[Messenger] GET 驗證成功，回傳 challenge');
     res.status(200).send(challenge);
   } else {
+    console.warn('[Messenger] GET 驗證失敗 | token received:', token, '| expected:', channel.credentials.verifyToken);
     res.sendStatus(403);
   }
 });
