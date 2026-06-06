@@ -26,6 +26,21 @@ router.post('/', auth, workspaceAuth('admin'), async (req, res) => {
       ownedBy: req.user._id,
       credentials: { ...credentials, verifyToken },
     });
+
+    if (platform === 'messenger' && credentials?.accessToken && credentials?.pageId) {
+      try {
+        await axios.post(`https://graph.facebook.com/v19.0/${credentials.pageId}/subscribed_apps`, null, {
+          params: {
+            subscribed_fields: 'messages,messaging_postbacks,messaging_referrals',
+            access_token: credentials.accessToken,
+          },
+        });
+        console.log('[Messenger] 頁面訂閱成功:', credentials.pageId);
+      } catch (subErr) {
+        console.error('[Messenger] 頁面訂閱失敗:', subErr.response?.data?.error || subErr.message);
+      }
+    }
+
     res.status(201).json({ channel });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -55,6 +70,21 @@ router.put('/:id', auth, workspaceAuth('admin'), async (req, res) => {
       { new: true }
     );
     if (!channel) return res.status(404).json({ error: '頻道不存在或您沒有編輯權限（非擁有者工作區）' });
+
+    if (channel.platform === 'messenger' && channel.credentials?.accessToken && channel.credentials?.pageId) {
+      try {
+        await axios.post(`https://graph.facebook.com/v19.0/${channel.credentials.pageId}/subscribed_apps`, null, {
+          params: {
+            subscribed_fields: 'messages,messaging_postbacks,messaging_referrals',
+            access_token: channel.credentials.accessToken,
+          },
+        });
+        console.log('[Messenger] 頁面訂閱成功:', channel.credentials.pageId);
+      } catch (subErr) {
+        console.error('[Messenger] 頁面訂閱失敗:', subErr.response?.data?.error || subErr.message);
+      }
+    }
+
     res.json({ channel });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
