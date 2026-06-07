@@ -40,7 +40,12 @@ async function processMessage({ contact, flow, channel, text, postbackPayload, i
       const nextEdge = flow.edges.find(e =>
         e.source === inputNodeId && (!e.sourceHandle || e.sourceHandle === 'output')
       );
-      if (!nextEdge) return;
+      if (!nextEdge) {
+        // 沒有下一個節點：清除流程狀態並存檔，避免 contact 卡在 waitingForInput
+        contact.currentFlowState = null;
+        await contact.save();
+        return;
+      }
       startNodeId = nextEdge.target;
     } else {
       // Start from trigger's first connected node

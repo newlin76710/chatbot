@@ -112,12 +112,13 @@ async function handleLineEvent(event, channel) {
   // 若此聯絡人已停用所有腳本，不執行任何流程
   if (contact.flowDisabled) return;
 
-  // 優先：若聯絡人在流程中等待輸入，繼續該流程
-  if (contact.currentFlowState?.waitingForInput && text) {
+  // 優先：若聯絡人在流程中等待輸入，繼續該流程（支援文字與 postback 回覆）
+  const lineInputAnswer = text || postbackPayload;
+  if (contact.currentFlowState?.waitingForInput && lineInputAnswer) {
     const resumeFlow = await Flow.findById(contact.currentFlowState.flowId);
     if (resumeFlow) {
       console.log('[LINE] 繼續等待輸入的流程:', resumeFlow.name);
-      await processMessage({ contact, flow: resumeFlow, channel, text, isResuming: true, replyToken });
+      await processMessage({ contact, flow: resumeFlow, channel, text: lineInputAnswer, isResuming: true, replyToken });
       return;
     }
   }
@@ -242,6 +243,9 @@ async function handleMessengerEvent(event, channel) {
   const { sender, message, postback } = event;
   if (!sender?.id) return;
 
+  // 過濾 echo 事件（機器人自己送出的訊息回傳），避免重複觸發流程
+  if (message?.is_echo) return;
+
   let contact = await Contact.findOneAndUpdate(
     { platformId: sender.id, channel: channel._id, platform: 'messenger' },
     { lastInteractedAt: new Date() },
@@ -278,10 +282,12 @@ async function handleMessengerEvent(event, channel) {
   if (contact.flowDisabled) return;
 
   // If contact is in mid-flow waiting for input, resume it first
-  if (contact.currentFlowState?.waitingForInput && text) {
+  // 同時支援文字回覆與 postback 按鈕回覆
+  const inputAnswer = text || postbackPayload;
+  if (contact.currentFlowState?.waitingForInput && inputAnswer) {
     const flow = await Flow.findById(contact.currentFlowState.flowId);
     if (flow) {
-      await processMessage({ contact, flow, channel, text, isResuming: true });
+      await processMessage({ contact, flow, channel, text: inputAnswer, isResuming: true });
       return;
     }
   }
@@ -373,6 +379,9 @@ async function handleInstagramEvent(event, channel) {
   const { sender, message, postback } = event;
   if (!sender?.id) return;
 
+  // 過濾 echo 事件
+  if (message?.is_echo) return;
+
   let contact = await Contact.findOneAndUpdate(
     { platformId: sender.id, channel: channel._id, platform: 'instagram' },
     { lastInteractedAt: new Date() },
@@ -409,11 +418,12 @@ async function handleInstagramEvent(event, channel) {
   // 若此聯絡人已停用所有腳本，不執行任何流程
   if (contact.flowDisabled) return;
 
-  // 若聯絡人在流程中等待輸入，繼續該流程
-  if (contact.currentFlowState?.waitingForInput && text) {
+  // 若聯絡人在流程中等待輸入，繼續該流程（支援文字與 postback 回覆）
+  const igInputAnswer = text || postbackPayload;
+  if (contact.currentFlowState?.waitingForInput && igInputAnswer) {
     const flow = await Flow.findById(contact.currentFlowState.flowId);
     if (flow) {
-      await processMessage({ contact, flow, channel, text, isResuming: true });
+      await processMessage({ contact, flow, channel, text: igInputAnswer, isResuming: true });
       return;
     }
   }
