@@ -64,7 +64,9 @@ async function handleLineEvent(event, channel) {
       contact.pictureUrl = profile.data.pictureUrl;
       contact.language = profile.data.language;
       await contact.save();
-    } catch (_) {}
+    } catch (e) {
+      console.warn('[LINE] 取得個人資料失敗 platformId:', platformId, '|', e.response?.data || e.message);
+    }
   }
 
   // 通知前端有新聯絡人加入
@@ -261,7 +263,9 @@ async function handleMessengerEvent(event, channel) {
       contact.displayName = profile.data.name;
       contact.pictureUrl = profile.data.profile_pic;
       await contact.save();
-    } catch (_) {}
+    } catch (e) {
+      console.warn('[Messenger] 取得個人資料失敗 sender.id:', sender.id, '|', e.response?.data?.error || e.message);
+    }
   }
 
   const text = message?.text || '';
@@ -398,7 +402,9 @@ async function handleInstagramEvent(event, channel) {
       contact.displayName = profile.data.name;
       contact.pictureUrl = profile.data.profile_pic;
       await contact.save();
-    } catch (_) {}
+    } catch (e) {
+      console.warn('[Instagram] 取得個人資料失敗 sender.id:', sender.id, '|', e.response?.data?.error || e.message);
+    }
   }
 
   const text = message?.text || '';
