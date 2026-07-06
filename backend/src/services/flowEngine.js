@@ -18,7 +18,16 @@ async function processMessage({ contact, flow, channel, text, postbackPayload, i
       const inputNodeId = contact.currentFlowState.nodeId;
       const field = contact.currentFlowState.inputField;
 
-      if (field && text) {
+      if (field === '_displayName' && text) {
+        // 特殊欄位：直接寫入聯絡人顯示名稱，不進 customFields
+        await Contact.updateOne(
+          { _id: contact._id },
+          { $set: { displayName: text } }
+        );
+        console.log(`[FlowEngine] 已寫入 displayName = "${text}" for contact ${contact._id}`);
+        contact.displayName = text;
+        emitContactUpdate(channel._id, contact._id, { displayName: text });
+      } else if (field && text) {
         // 直接寫入 MongoDB，確保資料不依賴 Mongoose Map change-tracking
         await Contact.updateOne(
           { _id: contact._id },

@@ -195,15 +195,17 @@ async function sendMessengerBroadcast(channel, recipientIds, messages) {
 
 function convertToMessengerFormat(msg) {
   switch (msg.type) {
-    case 'text':
-      return {
-        text: msg.text,
-        quick_replies: msg.quickReplies?.map(qr => ({
+    case 'text': {
+      const textMsg = { text: msg.text };
+      if (msg.quickReplies?.length) {
+        textMsg.quick_replies = msg.quickReplies.map(qr => ({
           content_type: 'text',
           title: qr.label,
           payload: qr.payload || qr.text,
-        })),
-      };
+        }));
+      }
+      return textMsg;
+    }
     case 'image':
       return { attachment: { type: 'image', payload: { url: msg.imageUrl } } };
     case 'video':
