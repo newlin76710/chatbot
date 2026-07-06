@@ -84,7 +84,7 @@ router.get('/facebook/url', (req, res) => {
   const params = new URLSearchParams({
     client_id: FB_APP_ID,
     redirect_uri: redirectUri,
-    scope: 'pages_show_list,pages_messaging,pages_manage_metadata',
+    scope: 'pages_show_list,pages_messaging,pages_manage_metadata,pages_read_engagement',
     response_type: 'code',
     auth_type: 'rerequest',   // 強制重新詢問所有權限（包含新增的 pages_show_list）
     state: Math.random().toString(36).slice(2),
