@@ -270,7 +270,8 @@ async function handleMessengerEvent(event, channel) {
 
   const text = message?.text || '';
   const postbackPayload = postback?.payload || '';
-  const triggerType = postback ? 'postback' : 'keyword';
+  const referralRef = event.referral?.ref || postback?.referral?.ref || '';
+  const triggerType = referralRef ? 'referral' : (postback ? 'postback' : 'keyword');
 
   // 儲存使用者訊息到對話紀錄
   if (text || postbackPayload) {
@@ -308,6 +309,7 @@ async function handleMessengerEvent(event, channel) {
     if (t.type === 'any') matches = true;
     else if (t.type === 'follow') matches = triggerType === 'keyword'; // Messenger 沒有 follow 事件，忽略
     else if (t.type === 'postback' && triggerType === 'postback' && t.postbackPayload === postbackPayload) matches = true;
+    else if (t.type === 'referral' && triggerType === 'referral') matches = !t.referralRef || t.referralRef === referralRef;
     else if (t.type === 'keyword' && text) {
       matches = t.keywords?.some(kw => {
         if (t.matchMode === 'exact') return text.toLowerCase() === kw.toLowerCase();
@@ -323,7 +325,7 @@ async function handleMessengerEvent(event, channel) {
         console.log('[Messenger] 標籤限制跳過流程:', flow.name);
         continue;
       }
-      await processMessage({ contact, flow, channel, text, postbackPayload });
+      await processMessage({ contact, flow, channel, text: text || referralRef, postbackPayload });
       break;
     }
   }

@@ -105,6 +105,7 @@ function TriggerConfig({ data, save }) {
           <option value="follow">加入好友</option>
           <option value="unfollow">封鎖／取消追蹤</option>
           <option value="postback">按鈕回傳</option>
+          <option value="referral">Messenger 廣告 ref</option>
         </select>
       </div>
 
@@ -133,6 +134,16 @@ function TriggerConfig({ data, save }) {
         <div style={sectionSt}>
           <label style={labelSt}>按鈕回傳值（payload）</label>
           <input style={inputSt} value={t.postbackPayload || ''} onChange={e => set('postbackPayload', e.target.value)} placeholder="PAYLOAD_VALUE" />
+        </div>
+      )}
+
+      {t.type === 'referral' && (
+        <div style={sectionSt}>
+          <label style={labelSt}>Messenger 廣告 ref</label>
+          <input style={inputSt} value={t.referralRef || ''} onChange={e => set('referralRef', e.target.value)} placeholder="nami_ad_001" />
+          <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4, lineHeight: 1.5 }}>
+            留空代表任何 Messenger referral 都會觸發；填入時需與 m.me 連結的 ref 參數相同。
+          </div>
         </div>
       )}
 

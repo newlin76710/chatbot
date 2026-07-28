@@ -173,6 +173,7 @@ const nodeSchema = new mongoose.Schema({
       keywords: [String],
       matchMode: { type: String, enum: ['exact', 'contains', 'startsWith'], default: 'contains' },
       postbackPayload: String,
+      referralRef: String,
       schedule: String, // cron expression
     },
     // For delay node
