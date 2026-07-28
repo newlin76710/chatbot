@@ -13,20 +13,25 @@ const { emitContactMessage, emitContactUpdate } = require('./index');
 async function processMessage({ contact, flow, channel, text, postbackPayload, isResuming = false, replyToken = null, replyContext = null }) {
   try {
     let startNodeId;
+    await ensureContactIdentityFields(contact);
 
     if (isResuming && contact.currentFlowState?.waitingForInput) {
       const inputNodeId = contact.currentFlowState.nodeId;
       const field = contact.currentFlowState.inputField;
 
       if (field === '_displayName' && text) {
-        // 特殊欄位：直接寫入聯絡人顯示名稱，不進 customFields
+        // Keep the contact title and survey name in sync.
         await Contact.updateOne(
           { _id: contact._id },
-          { $set: { displayName: text } }
+          { $set: { displayName: text, 'customFields.name': text } }
         );
         console.log(`[FlowEngine] 已寫入 displayName = "${text}" for contact ${contact._id}`);
         contact.displayName = text;
-        emitContactUpdate(channel._id, contact._id, { displayName: text });
+        if (!contact.customFields) contact.customFields = new Map();
+        contact.customFields.set('name', text);
+        const cfPlain = {};
+        contact.customFields.forEach((v, k) => { cfPlain[k] = v; });
+        emitContactUpdate(channel._id, contact._id, { displayName: text, customFields: cfPlain });
       } else if (field && text) {
         // 直接寫入 MongoDB，確保資料不依賴 Mongoose Map change-tracking
         await Contact.updateOne(
@@ -350,6 +355,20 @@ async function executeDelayNode(node, context) {
   if (ms <= 5000) await sleep(ms);
 }
 
+async function ensureContactIdentityFields(contact) {
+  if (!contact.customFields) contact.customFields = new Map();
+
+  const setOps = {};
+  if (contact.displayName && !contact.customFields.get('name')) {
+    contact.customFields.set('name', contact.displayName);
+    setOps['customFields.name'] = contact.displayName;
+  }
+
+  if (Object.keys(setOps).length) {
+    await Contact.updateOne({ _id: contact._id }, { $set: setOps });
+  }
+}
+
 // Template helpers
 function renderTemplate(msg, context) {
   // toObject() 確保 quickReplies 等所有欄位都被正確轉換
@@ -364,6 +383,7 @@ function renderTemplate(msg, context) {
 // 因此 {{var._displayName}} 需另外從 contact 讀取，不能只查 customFieldsPlain
 function getVarValue(key, context) {
   if (key === '_displayName') return context.contact.displayName || '';
+  if (key === 'name') return context.customFieldsPlain?.name ?? context.contact.displayName ?? '';
   return context.customFieldsPlain?.[key] ?? '';
 }
 

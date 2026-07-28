@@ -18,6 +18,7 @@ const FIELD_LABELS = {
   heightWeight: '身高體重',
   occupation: '職業',
   phoneNumber: '手機號碼',
+  accountId: '帳號 ID',
   name: '姓名',
   email: '電子郵件',
   gender: '性別',
@@ -26,10 +27,21 @@ const FIELD_LABELS = {
   note: '備註',
 };
 
-const DEFAULT_SURVEY_FIELDS = ['name', 'gender', 'maritalStatus', 'city', 'birthYear', 'education', 'occupation', 'phoneNumber'];
+const DEFAULT_SURVEY_FIELDS = ['name', 'accountId', 'gender', 'maritalStatus', 'city', 'birthYear', 'education', 'occupation', 'phoneNumber'];
 
 function fieldLabel(key) {
   return FIELD_LABELS[key] || key;
+}
+
+function surveyFieldsForContact(contact) {
+  const defaults = Object.fromEntries(DEFAULT_SURVEY_FIELDS.map(k => [k, '']));
+  const customFields = contact?.customFields || {};
+  return {
+    ...defaults,
+    ...customFields,
+    name: customFields.name || contact?.displayName || '',
+    accountId: customFields.accountId || contact?.platformId || '',
+  };
 }
 
 export function ContactsPage() {
@@ -249,10 +261,10 @@ export function ContactsPage() {
     try {
       const { data } = await api.get(`/contacts/${c._id}`);
       setSelected(data.contact);
-      setFieldDraft(data.contact.customFields || {});
+      setFieldDraft(surveyFieldsForContact(data.contact));
     } catch {
       setSelected(c);
-      setFieldDraft(c.customFields || {});
+      setFieldDraft(surveyFieldsForContact(c));
     } finally {
       setLoadingDetail(false);
     }
@@ -298,7 +310,7 @@ export function ContactsPage() {
       if (newFieldKey.trim()) allFields[newFieldKey.trim()] = newFieldVal;
 
       const { data } = await api.patch(`/contacts/${selected._id}/fields`, { fields: allFields });
-      setSelected(prev => ({ ...prev, customFields: data.customFields }));
+      setSelected(prev => ({ ...prev, displayName: data.displayName ?? prev.displayName, customFields: data.customFields }));
       setFieldDraft(data.customFields);
       setNewFieldKey('');
       setNewFieldVal('');
@@ -716,8 +728,7 @@ export function ContactsPage() {
                     {!editingFields
                       ? <button onClick={() => {
                             setEditingFields(true);
-                            const defaults = Object.fromEntries(DEFAULT_SURVEY_FIELDS.map(k => [k, '']));
-                            setFieldDraft({ ...defaults, ...(selected.customFields || {}) });
+                            setFieldDraft(surveyFieldsForContact(selected));
                           }}
                           style={{ fontSize: 11, color: '#6366F1', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>編輯</button>
                       : <div style={{ display: 'flex', gap: 6 }}>
@@ -732,8 +743,7 @@ export function ContactsPage() {
                   </div>
                   {!editingFields ? (() => {
                     const cf = selected.customFields || {};
-                    const defaults = Object.fromEntries(DEFAULT_SURVEY_FIELDS.map(k => [k, '']));
-                    const viewFields = { ...defaults, ...cf };
+                    const viewFields = surveyFieldsForContact(selected);
                     const extraKeys = Object.keys(cf).filter(k => !DEFAULT_SURVEY_FIELDS.includes(k));
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>

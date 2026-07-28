@@ -279,12 +279,19 @@ router.patch('/:id/fields', auth, workspaceAuth('editor'), async (req, res) => {
     if (!fields || typeof fields !== 'object') {
       return res.status(400).json({ error: 'fields 必須是物件' });
     }
+    const isObjectId = /^[a-f\d]{24}$/i.test(req.params.id);
+    const query = isObjectId ? { _id: req.params.id } : { platformId: req.params.id };
     const setOps = {};
     for (const [k, v] of Object.entries(fields)) {
       setOps[`customFields.${k}`] = v;
     }
-    const isObjectId = /^[a-f\d]{24}$/i.test(req.params.id);
-    const query = isObjectId ? { _id: req.params.id } : { platformId: req.params.id };
+    if (Object.prototype.hasOwnProperty.call(fields, 'name')) {
+      setOps.displayName = fields.name;
+    }
+    if (!Object.prototype.hasOwnProperty.call(fields, 'accountId')) {
+      const existing = await Contact.findOne(isObjectId ? { _id: req.params.id } : { platformId: req.params.id }).select('platformId');
+      if (existing?.platformId) setOps['customFields.accountId'] = existing.platformId;
+    }
     const contact = await Contact.findOneAndUpdate(
       query,
       { $set: setOps },
@@ -293,7 +300,7 @@ router.patch('/:id/fields', auth, workspaceAuth('editor'), async (req, res) => {
     if (!contact) return res.status(404).json({ error: '找不到此聯絡人' });
     const customFields = {};
     if (contact.customFields) contact.customFields.forEach((v, k) => { customFields[k] = v; });
-    res.json({ ok: true, customFields });
+    res.json({ ok: true, customFields, displayName: contact.displayName });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
