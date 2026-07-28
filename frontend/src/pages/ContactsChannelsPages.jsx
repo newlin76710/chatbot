@@ -80,6 +80,7 @@ export function ContactsPage() {
   const [tagSaving, setTagSaving] = useState(false);
 
   const historyBottomRef = useRef(null);
+  const sendTextareaRef = useRef(null);
   const selectedRef = useRef(null);
   selectedRef.current = selected;
 
@@ -159,6 +160,7 @@ export function ContactsPage() {
     try {
       await api.post(`/contacts/${selected._id}/send`, { text: sendText.trim() });
       setSendText('');
+      if (sendTextareaRef.current) sendTextareaRef.current.style.height = 'auto';
       if (activeTab !== 'history') setActiveTab('history');
     } catch (err) {
       toast.error(err.response?.data?.error || '傳送失敗');
@@ -886,12 +888,23 @@ export function ContactsPage() {
                 {/* 固定底部：傳訊息 + 執行腳本 */}
                 <div style={{ borderTop: '1px solid #E2E8F0', padding: '10px 14px', flexShrink: 0, background: '#FAFBFC', borderRadius: '0 0 12px 0' }}>
                   <div style={{ display: 'flex', gap: 6, marginBottom: 7 }}>
-                    <input
+                    <textarea
+                      ref={sendTextareaRef}
                       value={sendText}
-                      onChange={e => setSendText(e.target.value)}
+                      onChange={e => {
+                        setSendText(e.target.value);
+                        const el = e.target;
+                        el.style.height = 'auto';
+                        el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+                      }}
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { handleSendMessage(); e.preventDefault(); } }}
                       placeholder="輸入訊息後按 Enter 傳送..."
-                      style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none', background: '#fff' }}
+                      rows={1}
+                      style={{
+                        flex: 1, padding: '7px 10px', borderRadius: 8, border: '1px solid #E2E8F0',
+                        fontSize: 12, outline: 'none', background: '#fff', resize: 'none',
+                        fontFamily: 'inherit', lineHeight: 1.4, maxHeight: 120, overflowY: 'auto',
+                      }}
                     />
                     <button onClick={handleSendMessage} disabled={sending || !sendText.trim()} style={{
                       padding: '7px 14px', borderRadius: 8, border: 'none',
