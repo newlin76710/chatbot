@@ -18,7 +18,6 @@ const FIELD_LABELS = {
   heightWeight: '身高體重',
   occupation: '職業',
   phoneNumber: '手機號碼',
-  accountId: '帳號 ID',
   name: '姓名',
   email: '電子郵件',
   gender: '性別',
@@ -27,7 +26,7 @@ const FIELD_LABELS = {
   note: '備註',
 };
 
-const DEFAULT_SURVEY_FIELDS = ['name', 'accountId', 'gender', 'maritalStatus', 'city', 'birthYear', 'education', 'occupation', 'phoneNumber'];
+const DEFAULT_SURVEY_FIELDS = ['name', 'gender', 'maritalStatus', 'city', 'birthYear', 'education', 'occupation', 'phoneNumber'];
 
 function fieldLabel(key) {
   return FIELD_LABELS[key] || key;
@@ -40,7 +39,6 @@ function surveyFieldsForContact(contact) {
     ...defaults,
     ...customFields,
     name: customFields.name || contact?.displayName || '',
-    accountId: customFields.accountId || contact?.platformId || '',
   };
 }
 
