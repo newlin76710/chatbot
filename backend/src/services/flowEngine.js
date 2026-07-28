@@ -212,9 +212,9 @@ function evaluateCondition(condition, contact, context) {
 
   if (field === 'tags') actual = contact.tags;
   else if (field.startsWith('customField.')) {
-    actual = context.customFieldsPlain?.[field.split('.')[1]];
+    actual = getVarValue(field.split('.')[1], context);
   } else if (field.startsWith('var.')) {
-    actual = context.customFieldsPlain?.[field.split('.')[1]];
+    actual = getVarValue(field.split('.')[1], context);
   } else {
     actual = contact[field];
   }
@@ -360,13 +360,20 @@ function renderTemplate(msg, context) {
   return m;
 }
 
+// _displayName 是特殊欄位，直接寫入 contact.displayName 而非 customFields，
+// 因此 {{var._displayName}} 需另外從 contact 讀取，不能只查 customFieldsPlain
+function getVarValue(key, context) {
+  if (key === '_displayName') return context.contact.displayName || '';
+  return context.customFieldsPlain?.[key] ?? '';
+}
+
 function renderTemplateString(str, context) {
   if (!str) return str;
   return str
     .replace(/\{\{contact\.name\}\}/g, context.contact.displayName || '')
     .replace(/\{\{contact\.platform\}\}/g, context.contact.platform || '')
-    .replace(/\{\{var\.(\w+)\}\}/g, (_, k) => String(context.customFieldsPlain?.[k] ?? ''))
-    .replace(/\{\{customField\.(\w+)\}\}/g, (_, k) => String(context.customFieldsPlain?.[k] ?? ''));
+    .replace(/\{\{var\.(\w+)\}\}/g, (_, k) => String(getVarValue(k, context)))
+    .replace(/\{\{customField\.(\w+)\}\}/g, (_, k) => String(getVarValue(k, context)));
 }
 
 function resolveValue(value, context) {
