@@ -1329,6 +1329,14 @@ export function ChannelsPage() {
                 <span style={{ color: '#94A3B8' }}>Webhook：</span>/webhook/{ch.platform}/{ch._id}
               </div>
 
+              {ch.platform === 'messenger' && (
+                <div style={{ background: '#EFF6FF', borderRadius: 8, padding: '10px 12px', marginBottom: 8, fontSize: 11, color: '#1D4ED8' }}>
+                  <div style={{ fontWeight: 600, marginBottom: 2 }}>多粉專共用一個 App？</div>
+                  <div style={{ fontFamily: 'monospace', wordBreak: 'break-all', color: '#1E40AF' }}>/webhook/messenger</div>
+                  <div style={{ marginTop: 2, color: '#3B82F6' }}>在 Meta 後台只需登記這一條固定網址，Verify Token 使用後端 .env 的 FB_VERIFY_TOKEN；每個粉專仍各自綁定自己的 Page（此頻道的粉專 ID：{ch.credentials?.pageId || '未設定'}）。</div>
+                </div>
+              )}
+
               {/* 頻道 ID（供共享給其他工作區使用） */}
               {isOwner && (
                 <div style={{ background: '#F8F9FC', borderRadius: 8, padding: '8px 12px', marginBottom: 8, fontSize: 11, color: '#64748B', display: 'flex', alignItems: 'center', gap: 6 }}>

@@ -329,6 +329,60 @@ async function handleMessengerEvent(event, channel) {
   }
 }
 
+// ─── Facebook Messenger Webhook（多粉專共用一個 App）──────────
+// Meta 後台一個 App 只能設定「一組」Callback URL + Verify Token，
+// 無法像上面 /:channelId 那樣每個粉專各自登記一條網址。
+// 所以多粉專要共用同一個 App 時，必須改用固定路徑，
+// 並以 webhook payload 裡的 entry[].id（粉專 Page ID）反查對應的 Channel。
+router.get('/messenger', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  if (mode === 'subscribe' && token === process.env.FB_VERIFY_TOKEN) {
+    console.log('[Messenger] 共用 Webhook GET 驗證成功');
+    res.status(200).send(challenge);
+  } else {
+    console.warn('[Messenger] 共用 Webhook GET 驗證失敗 | token received:', token);
+    res.sendStatus(403);
+  }
+});
+
+router.post('/messenger', async (req, res) => {
+  res.status(200).send('EVENT_RECEIVED');
+
+  try {
+    const sig = req.headers['x-hub-signature-256'];
+    const appSecret = process.env.FB_APP_SECRET;
+    if (sig && appSecret) {
+      const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
+      const expected = 'sha256=' + crypto
+        .createHmac('sha256', appSecret)
+        .update(rawBody)
+        .digest('hex');
+      if (sig !== expected) {
+        console.warn('[Messenger] 共用 Webhook 簽章驗證失敗');
+        return;
+      }
+    }
+
+    const { entry } = req.body;
+    for (const e of entry || []) {
+      const pageId = e.id;
+      const channel = await Channel.findOne({ platform: 'messenger', 'credentials.pageId': pageId });
+      if (!channel) {
+        console.warn('[Messenger] 找不到對應此 Page ID 的頻道:', pageId);
+        continue;
+      }
+      for (const messaging of (e.messaging || [])) {
+        await handleMessengerEvent(messaging, channel);
+      }
+    }
+  } catch (err) {
+    console.error('Messenger 共用 webhook error:', err);
+  }
+});
+
 // ─── Instagram Webhook ───────────────────────────────────────
 // Verify challenge（與 Messenger 相同機制）
 router.get('/instagram/:channelId', async (req, res) => {
