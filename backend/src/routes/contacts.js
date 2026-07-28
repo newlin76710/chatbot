@@ -288,10 +288,6 @@ router.patch('/:id/fields', auth, workspaceAuth('editor'), async (req, res) => {
     if (Object.prototype.hasOwnProperty.call(fields, 'name')) {
       setOps.displayName = fields.name;
     }
-    if (!Object.prototype.hasOwnProperty.call(fields, 'accountId')) {
-      const existing = await Contact.findOne(isObjectId ? { _id: req.params.id } : { platformId: req.params.id }).select('platformId');
-      if (existing?.platformId) setOps['customFields.accountId'] = existing.platformId;
-    }
     const contact = await Contact.findOneAndUpdate(
       query,
       { $set: setOps },
