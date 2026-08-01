@@ -261,13 +261,23 @@ async function executeActionNode(node, context) {
       case 'setField': {
         const val = resolveValue(action.value, context);
         // 直接寫入 DB
-        await Contact.updateOne(
-          { _id: contact._id },
-          { $set: { [`customFields.${action.field}`]: val } }
-        );
         if (!contact.customFields) contact.customFields = new Map();
-        contact.customFields.set(action.field, val);
-        if (context.customFieldsPlain) context.customFieldsPlain[action.field] = val;
+        if (action.field === '_displayName') {
+          await Contact.updateOne(
+            { _id: contact._id },
+            { $set: { displayName: val, 'customFields.name': val } }
+          );
+          contact.displayName = val;
+          contact.customFields.set('name', val);
+          if (context.customFieldsPlain) context.customFieldsPlain.name = val;
+        } else {
+          await Contact.updateOne(
+            { _id: contact._id },
+            { $set: { [`customFields.${action.field}`]: val } }
+          );
+          contact.customFields.set(action.field, val);
+          if (context.customFieldsPlain) context.customFieldsPlain[action.field] = val;
+        }
         break;
       }
       case 'unsubscribe':

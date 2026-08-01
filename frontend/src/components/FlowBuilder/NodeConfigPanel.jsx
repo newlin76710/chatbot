@@ -502,7 +502,7 @@ function ActionConfig({ data, save }) {
           {a.type === 'setField' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <input style={inputSt} value={a.field || ''} onChange={e => updateAction(i, 'field', e.target.value)}
-                placeholder="欄位名稱（例如：city）" />
+                placeholder="欄位名稱（例如：city，或 _displayName）" />
               <input style={inputSt} value={a.value || ''} onChange={e => updateAction(i, 'value', e.target.value)}
                 placeholder="值（可使用 {{var.lastMessage}} 或 {{var.xxx}}）" />
             </div>
