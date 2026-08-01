@@ -106,6 +106,7 @@ function TriggerConfig({ data, save }) {
           <option value="unfollow">封鎖／取消追蹤</option>
           <option value="postback">按鈕回傳</option>
           <option value="referral">Messenger 廣告 ref</option>
+          <option value="chatOpen">打開聊天室窗</option>
         </select>
       </div>
 
@@ -150,6 +151,12 @@ function TriggerConfig({ data, save }) {
       {t.type === 'any' && (
         <div style={{ fontSize: 12, color: '#64748B', background: '#F8F9FC', borderRadius: 8, padding: '8px 12px' }}>
           任何使用者傳來的訊息都會觸發此流程（適合作為預設歡迎流程）
+        </div>
+      )}
+
+      {t.type === 'chatOpen' && (
+        <div style={{ fontSize: 12, color: '#64748B', background: '#F8F9FC', borderRadius: 8, padding: '8px 12px', lineHeight: 1.5 }}>
+          後台打開此聯絡人的聊天室窗時會觸發此流程。
         </div>
       )}
 

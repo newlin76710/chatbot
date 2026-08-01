@@ -27,6 +27,8 @@ const TRIGGER_LABELS = {
   follow: '加入好友',
   unfollow: '封鎖',
   postback: '按鈕回傳',
+  referral: 'Messenger 廣告 ref',
+  chatOpen: '打開聊天室窗',
 };
 
 function BaseNode({ data, type, selected, children }) {

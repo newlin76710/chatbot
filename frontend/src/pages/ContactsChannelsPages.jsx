@@ -257,6 +257,7 @@ export function ContactsPage() {
     setUnreadContactIds(prev => { const s = new Set(prev); s.delete(String(c._id)); return s; });
     api.post(`/contacts/${c._id}/read`).catch(() => {});
     try {
+      await api.post(`/contacts/${c._id}/chat-open`).catch(() => {});
       const { data } = await api.get(`/contacts/${c._id}`);
       setSelected(data.contact);
       setFieldDraft(surveyFieldsForContact(data.contact));
@@ -1108,6 +1109,18 @@ export function ChannelsPage() {
     }
   };
 
+  const syncMessengerContacts = async (channelId) => {
+    setSyncingIds(prev => new Set([...prev, channelId]));
+    try {
+      const { data } = await api.post(`/channels/${channelId}/sync-messenger-contacts`);
+      toast.success(`同步完成：新增 ${data.created} 位聯絡人（共 ${data.total} 位）`);
+    } catch (err) {
+      toast.error(err.response?.data?.error || '同步失敗');
+    } finally {
+      setSyncingIds(prev => { const s = new Set(prev); s.delete(channelId); return s; });
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -1369,6 +1382,15 @@ export function ChannelsPage() {
                     disabled={syncingIds.has(ch._id)}
                     style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #A7F3D0', background: '#F0FDF4', color: '#059669', cursor: syncingIds.has(ch._id) ? 'not-allowed' : 'pointer', fontSize: 11, opacity: syncingIds.has(ch._id) ? 0.6 : 1 }}>
                     {syncingIds.has(ch._id) ? '同步中...' : '同步好友'}
+                  </button>
+                )}
+                {ch.platform === 'messenger' && (
+                  <button
+                    onClick={() => syncMessengerContacts(ch._id)}
+                    disabled={syncingIds.has(ch._id)}
+                    title="同步曾傳訊息、點擊廣告進入對話，或跟粉專有過 Messenger 對話的人"
+                    style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #A7F3D0', background: '#F0FDF4', color: '#059669', cursor: syncingIds.has(ch._id) ? 'not-allowed' : 'pointer', fontSize: 11, opacity: syncingIds.has(ch._id) ? 0.6 : 1 }}>
+                    {syncingIds.has(ch._id) ? '同步中...' : '同步聯絡人'}
                   </button>
                 )}
                 <button onClick={() => handleDelete(ch)}

@@ -154,4 +154,68 @@ router.post('/:id/sync-line-followers', auth, workspaceAuth('admin'), async (req
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// 同步 Messenger 粉專的既有對話名單（含：曾傳訊息、點擊「傳送訊息」廣告進入對話、
+// 或任何跟粉專有過 Messenger 對話的人）— 這些在 Facebook 端都屬於同一份 Page Inbox 對話清單
+router.post('/:id/sync-messenger-contacts', auth, workspaceAuth('admin'), async (req, res) => {
+  try {
+    const channel = await Channel.findOne({ _id: req.params.id, $or: [{ workspaces: req.workspace._id }, { workspace: req.workspace._id }] });
+    if (!channel) return res.status(404).json({ error: 'Channel not found' });
+    if (channel.platform !== 'messenger') return res.status(400).json({ error: 'Not a Messenger channel' });
+
+    const accessToken = channel.credentials?.accessToken;
+    const pageId = channel.credentials?.pageId;
+    if (!accessToken || !pageId) return res.status(400).json({ error: '此頻道尚未設定 Page Access Token 或 Page ID' });
+
+    const participants = new Map(); // platformId -> displayName
+    let url = `https://graph.facebook.com/v19.0/${pageId}/conversations`;
+    let params = { fields: 'participants', limit: 100, access_token: accessToken };
+
+    do {
+      let fbResp;
+      try {
+        fbResp = await axios.get(url, params ? { params } : undefined);
+      } catch (fbErr) {
+        const status = fbErr.response?.status;
+        const msg = fbErr.response?.data?.error?.message || fbErr.message;
+        return res.status(422).json({ error: `Facebook API error (${status}): ${msg}` });
+      }
+      for (const convo of (fbResp.data.data || [])) {
+        for (const p of (convo.participants?.data || [])) {
+          if (p.id && p.id !== pageId && !participants.has(p.id)) {
+            participants.set(p.id, p.name || '');
+          }
+        }
+      }
+      url = fbResp.data.paging?.next || null;
+      params = null; // paging.next 已內含完整查詢字串（含 access_token）
+    } while (url);
+
+    const allIds = [...participants.keys()];
+    const existing = await Contact.find(
+      { channel: channel._id, platform: 'messenger', platformId: { $in: allIds } },
+      { platformId: 1 }
+    );
+    const existingSet = new Set(existing.map(c => c.platformId));
+    const newIds = allIds.filter(id => !existingSet.has(id));
+
+    if (newIds.length > 0) {
+      await Contact.bulkWrite(newIds.map(id => ({
+        updateOne: {
+          filter: { platformId: id, channel: channel._id, platform: 'messenger' },
+          update: {
+            $setOnInsert: {
+              platformId: id, channel: channel._id, platform: 'messenger',
+              displayName: participants.get(id) || undefined,
+              lastInteractedAt: new Date(),
+            },
+          },
+          upsert: true,
+        }
+      })));
+    }
+
+    res.json({ total: allIds.length, existing: existingSet.size, created: newIds.length });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;

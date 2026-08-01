@@ -442,6 +442,44 @@ router.patch('/:id/flow-disabled', auth, workspaceAuth('editor'), async (req, re
   }
 });
 
+// POST /api/contacts/:id/chat-open
+router.post('/:id/chat-open', auth, workspaceAuth('editor'), async (req, res) => {
+  try {
+    const contact = await Contact.findById(req.params.id).populate('channel');
+    if (!contact) return res.status(404).json({ error: '找不到此聯絡人' });
+    if (!contact.channel?.workspace?.equals(req.workspace._id))
+      return res.status(403).json({ error: 'Forbidden' });
+
+    if (contact.flowDisabled) {
+      return res.json({ ok: true, triggered: false, reason: 'flowDisabled' });
+    }
+
+    const flows = await Flow.find({ channel: contact.channel._id, isActive: true });
+    for (const flow of flows) {
+      const triggerNode = flow.nodes.find(n => n.type === 'trigger');
+      const trigger = triggerNode?.data?.trigger || triggerNode?.data || {};
+      if (trigger.type !== 'chatOpen') continue;
+
+      const excludeTags = trigger.excludeIfHasTags || [];
+      if (excludeTags.length > 0 && contact.tags?.some(tag => excludeTags.includes(tag))) continue;
+
+      await processMessage({
+        contact,
+        flow,
+        channel: contact.channel,
+        text: '',
+        postbackPayload: '',
+      });
+      return res.json({ ok: true, triggered: true, flowId: flow._id });
+    }
+
+    res.json({ ok: true, triggered: false });
+  } catch (err) {
+    console.error('[打開聊天室觸發]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/contacts/:id/trigger-flow
 router.post('/:id/trigger-flow', auth, workspaceAuth('editor'), async (req, res) => {
   try {
