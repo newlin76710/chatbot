@@ -81,10 +81,20 @@ router.get('/facebook/url', (req, res) => {
   if (!FB_APP_ID) return res.status(500).json({ error: '平台尚未設定 Facebook App ID，請聯繫管理員' });
 
   const redirectUri = `${BACKEND_URL || 'http://localhost:4000'}/api/auth/facebook/callback`;
+  const baseScopes = [
+    'pages_show_list',
+    'pages_messaging',
+    'pages_manage_metadata',
+    'pages_read_engagement',
+  ];
+  const extraScopes = (process.env.FB_OAUTH_EXTRA_SCOPES || '')
+    .split(',')
+    .map(scope => scope.trim())
+    .filter(Boolean);
   const params = new URLSearchParams({
     client_id: FB_APP_ID,
     redirect_uri: redirectUri,
-    scope: 'pages_show_list,pages_messaging,pages_manage_metadata,pages_read_engagement,instagram_basic,instagram_manage_messages,business_management',
+    scope: [...new Set([...baseScopes, ...extraScopes])].join(','),
     response_type: 'code',
     auth_type: 'rerequest',   // 強制重新詢問所有權限（包含新增的 pages_show_list）
     state: Math.random().toString(36).slice(2),
