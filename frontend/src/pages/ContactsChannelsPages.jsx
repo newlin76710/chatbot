@@ -1311,36 +1311,50 @@ export function ChannelsPage() {
       {showFbPageSelect && (
         <div style={modalStyle}>
           <div style={{ ...cardStyle, width: 480 }}>
-            <h2 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 700 }}>選擇要連結的粉絲專頁</h2>
-            <p style={{ margin: '0 0 16px', fontSize: 13, color: '#64748B' }}>請選擇要與此工作區連結的 Facebook 粉絲專頁：</p>
+            <h2 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 700 }}>
+              {form.platform === 'instagram' ? '選擇 Instagram 帳號' : '選擇要連結的粉絲專頁'}
+            </h2>
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: '#64748B' }}>
+              {form.platform === 'instagram'
+                ? 'Instagram 私訊 API 會透過已綁定的 Facebook 粉專授權；請選擇粉專底下的 IG 專業帳號。'
+                : '請選擇要與此工作區連結的 Facebook 粉絲專頁：'}
+            </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 360, overflowY: 'auto' }}>
-              {fbPages.map(page => (
+              {fbPages.map(page => {
+                const igAccount = page.instagram_business_account || page.connected_instagram_account;
+                const isInstagramMode = form.platform === 'instagram';
+                const disabled = creatingFbChannel || (isInstagramMode && !igAccount?.id);
+                const avatarUrl = isInstagramMode ? igAccount?.profile_picture_url : page.picture?.data?.url;
+                return (
                 <button
                   key={page.id}
                   onClick={() => handleSelectFbPage(page)}
-                  disabled={creatingFbChannel}
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', cursor: creatingFbChannel ? 'not-allowed' : 'pointer', textAlign: 'left', transition: 'border-color 0.15s' }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = '#6366F1'}
+                  disabled={disabled}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, border: '1.5px solid #E2E8F0', background: disabled ? '#F8FAFC' : '#fff', cursor: disabled ? 'not-allowed' : 'pointer', textAlign: 'left', transition: 'border-color 0.15s', opacity: disabled ? 0.65 : 1 }}
+                  onMouseEnter={e => { if (!disabled) e.currentTarget.style.borderColor = isInstagramMode ? '#E1306C' : '#6366F1'; }}
                   onMouseLeave={e => e.currentTarget.style.borderColor = '#E2E8F0'}
                 >
-                  {page.picture?.data?.url
-                    ? <img src={page.picture.data.url} alt="" style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0 }} />
-                    : <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>🔵</div>
+                  {avatarUrl
+                    ? <img src={avatarUrl} alt="" style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} />
+                    : <div style={{ width: 38, height: 38, borderRadius: '50%', background: isInstagramMode ? '#FFF0F5' : '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{isInstagramMode ? '◎' : 'f'}</div>
                   }
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A' }}>{page.name}</div>
-                    <div style={{ fontSize: 11, color: '#94A3B8', fontFamily: 'monospace' }}>ID: {page.id}</div>
-                    {form.platform === 'instagram' && (
-                      <div style={{ fontSize: 11, color: (page.instagram_business_account || page.connected_instagram_account)?.username ? '#E1306C' : '#F43F5E', marginTop: 2 }}>
-                        {(page.instagram_business_account || page.connected_instagram_account)?.username
-                          ? `Instagram @${(page.instagram_business_account || page.connected_instagram_account).username}`
-                          : '未綁定 Instagram 專業帳號'}
-                      </div>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A' }}>
+                      {isInstagramMode
+                        ? (igAccount?.username ? `Instagram @${igAccount.username}` : '未綁定 Instagram 專業帳號')
+                        : page.name}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>
+                      {isInstagramMode ? `連結粉專：${page.name}` : `ID: ${page.id}`}
+                    </div>
+                    {isInstagramMode && igAccount?.id && (
+                      <div style={{ fontSize: 11, color: '#E1306C', fontFamily: 'monospace', marginTop: 2 }}>IG ID: {igAccount.id}</div>
                     )}
                   </div>
                   <span style={{ marginLeft: 'auto', fontSize: 18, color: '#CBD5E1' }}>›</span>
                 </button>
-              ))}
+                );
+              })}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
               <button onClick={() => { setShowFbPageSelect(false); setFbPages([]); }}
