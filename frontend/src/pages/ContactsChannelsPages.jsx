@@ -1082,12 +1082,29 @@ export function ChannelsPage() {
   const handleSelectFbPage = async (page) => {
     setCreatingFbChannel(true);
     try {
+      const igAccount = page.instagram_business_account || page.connected_instagram_account;
+      if (form.platform === 'instagram' && !igAccount?.id) {
+        toast.error('此 Facebook 粉專尚未綁定 Instagram 專業帳號');
+        setCreatingFbChannel(false);
+        return;
+      }
       await createChannel({
-        name: page.name,
-        platform: 'messenger',
-        credentials: { accessToken: page.access_token, pageId: page.id },
+        name: form.platform === 'instagram'
+          ? (igAccount.username ? `Instagram @${igAccount.username}` : `${page.name} Instagram`)
+          : page.name,
+        platform: form.platform,
+        credentials: form.platform === 'instagram'
+          ? {
+              accessToken: page.access_token,
+              pageId: page.id,
+              igUserId: igAccount.id,
+              igUsername: igAccount.username,
+            }
+          : { accessToken: page.access_token, pageId: page.id },
       });
-      toast.success(`已成功連結「${page.name}」！`);
+      toast.success(form.platform === 'instagram'
+        ? `已連接 Instagram ${igAccount.username ? `@${igAccount.username}` : ''}`
+        : `已連接 ${page.name}`);
       setShowFbPageSelect(false);
       setFbPages([]);
       setShowForm(false);
@@ -1116,6 +1133,18 @@ export function ChannelsPage() {
       toast.success(`同步完成：新增 ${data.created} 位聯絡人（共 ${data.total} 位）`);
     } catch (err) {
       toast.error(err.response?.data?.error || '同步失敗');
+    } finally {
+      setSyncingIds(prev => { const s = new Set(prev); s.delete(channelId); return s; });
+    }
+  };
+
+  const syncInstagramContacts = async (channelId) => {
+    setSyncingIds(prev => new Set([...prev, channelId]));
+    try {
+      const { data } = await api.post(`/channels/${channelId}/sync-instagram-contacts`);
+      toast.success(`同步完成：新增 ${data.created} 位 IG 聯絡人（共 ${data.total} 位）`);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Instagram 同步失敗');
     } finally {
       setSyncingIds(prev => { const s = new Set(prev); s.delete(channelId); return s; });
     }
@@ -1301,6 +1330,13 @@ export function ChannelsPage() {
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 14, color: '#0F172A' }}>{page.name}</div>
                     <div style={{ fontSize: 11, color: '#94A3B8', fontFamily: 'monospace' }}>ID: {page.id}</div>
+                    {form.platform === 'instagram' && (
+                      <div style={{ fontSize: 11, color: (page.instagram_business_account || page.connected_instagram_account)?.username ? '#E1306C' : '#F43F5E', marginTop: 2 }}>
+                        {(page.instagram_business_account || page.connected_instagram_account)?.username
+                          ? `Instagram @${(page.instagram_business_account || page.connected_instagram_account).username}`
+                          : '未綁定 Instagram 專業帳號'}
+                      </div>
+                    )}
                   </div>
                   <span style={{ marginLeft: 'auto', fontSize: 18, color: '#CBD5E1' }}>›</span>
                 </button>
@@ -1390,6 +1426,15 @@ export function ChannelsPage() {
                     disabled={syncingIds.has(ch._id)}
                     title="同步曾傳訊息、點擊廣告進入對話，或跟粉專有過 Messenger 對話的人"
                     style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #A7F3D0', background: '#F0FDF4', color: '#059669', cursor: syncingIds.has(ch._id) ? 'not-allowed' : 'pointer', fontSize: 11, opacity: syncingIds.has(ch._id) ? 0.6 : 1 }}>
+                    {syncingIds.has(ch._id) ? '同步中...' : '同步聯絡人'}
+                  </button>
+                )}
+                {ch.platform === 'instagram' && (
+                  <button
+                    onClick={() => syncInstagramContacts(ch._id)}
+                    disabled={syncingIds.has(ch._id)}
+                    title="同步曾與此 Instagram 專業帳號有過私訊對話的人"
+                    style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #F9A8D4', background: '#FFF0F5', color: '#BE185D', cursor: syncingIds.has(ch._id) ? 'not-allowed' : 'pointer', fontSize: 11, opacity: syncingIds.has(ch._id) ? 0.6 : 1 }}>
                     {syncingIds.has(ch._id) ? '同步中...' : '同步聯絡人'}
                   </button>
                 )}

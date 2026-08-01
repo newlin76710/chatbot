@@ -435,6 +435,61 @@ router.post('/instagram/:channelId', async (req, res) => {
   }
 });
 
+router.get('/instagram', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  if (mode === 'subscribe' && token === process.env.FB_VERIFY_TOKEN) {
+    console.log('[Instagram] global webhook verified');
+    res.status(200).send(challenge);
+  } else {
+    console.warn('[Instagram] global webhook verify failed');
+    res.sendStatus(403);
+  }
+});
+
+router.post('/instagram', async (req, res) => {
+  res.status(200).send('EVENT_RECEIVED');
+
+  try {
+    const sig = req.headers['x-hub-signature-256'];
+    const appSecret = process.env.FB_APP_SECRET;
+    if (sig && appSecret) {
+      const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
+      const expected = 'sha256=' + crypto
+        .createHmac('sha256', appSecret)
+        .update(rawBody)
+        .digest('hex');
+      if (sig !== expected) {
+        console.warn('[Instagram] global webhook signature failed');
+        return;
+      }
+    }
+
+    const { entry } = req.body;
+    for (const e of entry || []) {
+      const entryId = e.id;
+      const channel = await Channel.findOne({
+        platform: 'instagram',
+        $or: [
+          { 'credentials.igUserId': entryId },
+          { 'credentials.pageId': entryId },
+        ],
+      });
+      if (!channel) {
+        console.warn('[Instagram] channel not found for entry:', entryId);
+        continue;
+      }
+      for (const messaging of (e.messaging || [])) {
+        await handleInstagramEvent(messaging, channel);
+      }
+    }
+  } catch (err) {
+    console.error('Instagram global webhook error:', err);
+  }
+});
+
 async function handleInstagramEvent(event, channel) {
   const { sender, message, postback } = event;
   if (!sender?.id) return;

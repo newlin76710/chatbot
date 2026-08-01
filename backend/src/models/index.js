@@ -59,6 +59,8 @@ const channelSchema = new mongoose.Schema({
     accessToken: String,
     channelSecret: String,
     pageId: String,
+    igUserId: String,
+    igUsername: String,
     verifyToken: String,
   },
   ownedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

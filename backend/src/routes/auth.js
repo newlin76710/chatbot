@@ -84,7 +84,7 @@ router.get('/facebook/url', (req, res) => {
   const params = new URLSearchParams({
     client_id: FB_APP_ID,
     redirect_uri: redirectUri,
-    scope: 'pages_show_list,pages_messaging,pages_manage_metadata,pages_read_engagement',
+    scope: 'pages_show_list,pages_messaging,pages_manage_metadata,pages_read_engagement,instagram_basic,instagram_manage_messages,business_management',
     response_type: 'code',
     auth_type: 'rerequest',   // 強制重新詢問所有權限（包含新增的 pages_show_list）
     state: Math.random().toString(36).slice(2),
@@ -144,7 +144,11 @@ router.get('/facebook/callback', async (req, res) => {
     // 方式 1：me/accounts（傳統方式）
     try {
       const pagesRes = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
-        params: { access_token: userToken, fields: 'id,name,access_token', limit: 100 },
+        params: {
+          access_token: userToken,
+          fields: 'id,name,access_token,picture,instagram_business_account{id,username,name,profile_picture_url},connected_instagram_account{id,username,name,profile_picture_url}',
+          limit: 100,
+        },
       });
       pages = pagesRes.data.data || [];
       console.log('[FB OAuth] me/accounts 頁面數:', pages.length);
@@ -178,7 +182,10 @@ router.get('/facebook/callback', async (req, res) => {
         for (const pageId of pageIds) {
           try {
             const pageRes = await axios.get(`https://graph.facebook.com/v18.0/${pageId}`, {
-              params: { access_token: userToken, fields: 'id,name,access_token' },
+              params: {
+                access_token: userToken,
+                fields: 'id,name,access_token,picture,instagram_business_account{id,username,name,profile_picture_url},connected_instagram_account{id,username,name,profile_picture_url}',
+              },
             });
             if (pageRes.data.access_token) pages.push(pageRes.data);
           } catch (pe) {

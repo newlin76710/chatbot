@@ -27,7 +27,7 @@ router.post('/', auth, workspaceAuth('admin'), async (req, res) => {
       credentials: { ...credentials, verifyToken },
     });
 
-    if (platform === 'messenger' && credentials?.accessToken && credentials?.pageId) {
+    if (['messenger', 'instagram'].includes(platform) && credentials?.accessToken && credentials?.pageId) {
       try {
         await axios.post(`https://graph.facebook.com/v19.0/${credentials.pageId}/subscribed_apps`, null, {
           params: {
@@ -71,7 +71,7 @@ router.put('/:id', auth, workspaceAuth('admin'), async (req, res) => {
     );
     if (!channel) return res.status(404).json({ error: '頻道不存在或您沒有編輯權限（非擁有者工作區）' });
 
-    if (channel.platform === 'messenger' && channel.credentials?.accessToken && channel.credentials?.pageId) {
+    if (['messenger', 'instagram'].includes(channel.platform) && channel.credentials?.accessToken && channel.credentials?.pageId) {
       try {
         await axios.post(`https://graph.facebook.com/v19.0/${channel.credentials.pageId}/subscribed_apps`, null, {
           params: {
@@ -205,6 +205,71 @@ router.post('/:id/sync-messenger-contacts', auth, workspaceAuth('admin'), async 
           update: {
             $setOnInsert: {
               platformId: id, channel: channel._id, platform: 'messenger',
+              displayName: participants.get(id) || undefined,
+              lastInteractedAt: new Date(),
+            },
+          },
+          upsert: true,
+        }
+      })));
+    }
+
+    res.json({ total: allIds.length, existing: existingSet.size, created: newIds.length });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/:id/sync-instagram-contacts', auth, workspaceAuth('admin'), async (req, res) => {
+  try {
+    const channel = await Channel.findOne({ _id: req.params.id, $or: [{ workspaces: req.workspace._id }, { workspace: req.workspace._id }] });
+    if (!channel) return res.status(404).json({ error: 'Channel not found' });
+    if (channel.platform !== 'instagram') return res.status(400).json({ error: 'Not an Instagram channel' });
+
+    const accessToken = channel.credentials?.accessToken;
+    const igUserId = channel.credentials?.igUserId;
+    if (!accessToken || !igUserId) return res.status(400).json({ error: '此頻道缺少 Page Access Token 或 IG User ID' });
+
+    const participants = new Map();
+    let url = `https://graph.facebook.com/v19.0/${igUserId}/conversations`;
+    let params = { platform: 'instagram', fields: 'participants', limit: 100, access_token: accessToken };
+
+    do {
+      let igResp;
+      try {
+        igResp = await axios.get(url, params ? { params } : undefined);
+      } catch (igErr) {
+        const status = igErr.response?.status;
+        const msg = igErr.response?.data?.error?.message || igErr.message;
+        return res.status(422).json({ error: `Instagram API error (${status}): ${msg}` });
+      }
+
+      for (const convo of (igResp.data.data || [])) {
+        for (const p of (convo.participants?.data || [])) {
+          if (p.id && p.id !== igUserId && !participants.has(p.id)) {
+            participants.set(p.id, p.username || p.name || '');
+          }
+        }
+      }
+      url = igResp.data.paging?.next || null;
+      params = null;
+    } while (url);
+
+    const allIds = [...participants.keys()];
+    const existing = await Contact.find(
+      { channel: channel._id, platform: 'instagram', platformId: { $in: allIds } },
+      { platformId: 1 }
+    );
+    const existingSet = new Set(existing.map(c => c.platformId));
+    const newIds = allIds.filter(id => !existingSet.has(id));
+
+    if (newIds.length > 0) {
+      await Contact.bulkWrite(newIds.map(id => ({
+        updateOne: {
+          filter: { platformId: id, channel: channel._id, platform: 'instagram' },
+          update: {
+            $setOnInsert: {
+              platformId: id,
+              channel: channel._id,
+              platform: 'instagram',
               displayName: participants.get(id) || undefined,
               lastInteractedAt: new Date(),
             },
