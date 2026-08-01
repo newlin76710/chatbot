@@ -95,6 +95,11 @@ async function processMessage({ contact, flow, channel, text, postbackPayload, i
       text,
       postbackPayload,
       customFieldsPlain,
+      variables: {
+        lastMessage: text || '',
+        triggerMessage: text || '',
+        postbackPayload: postbackPayload || '',
+      },
       replyContext: replyContext || { replyToken, used: false },
     };
 
@@ -384,6 +389,7 @@ function renderTemplate(msg, context) {
 function getVarValue(key, context) {
   if (key === '_displayName') return context.contact.displayName || '';
   if (key === 'name') return context.customFieldsPlain?.name ?? context.contact.displayName ?? '';
+  if (Object.prototype.hasOwnProperty.call(context.variables || {}, key)) return context.variables[key];
   return context.customFieldsPlain?.[key] ?? '';
 }
 

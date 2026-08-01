@@ -504,7 +504,7 @@ function ActionConfig({ data, save }) {
               <input style={inputSt} value={a.field || ''} onChange={e => updateAction(i, 'field', e.target.value)}
                 placeholder="欄位名稱（例如：city）" />
               <input style={inputSt} value={a.value || ''} onChange={e => updateAction(i, 'value', e.target.value)}
-                placeholder="值（可使用 {{var.xxx}}）" />
+                placeholder="值（可使用 {{var.lastMessage}} 或 {{var.xxx}}）" />
             </div>
           )}
 
