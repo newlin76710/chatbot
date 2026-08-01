@@ -14,6 +14,7 @@ async function processMessage({ contact, flow, channel, text, postbackPayload, i
   try {
     let startNodeId;
     await ensureContactIdentityFields(contact);
+    const stateVariables = mapToPlainObject(contact.currentFlowState?.variables);
 
     if (isResuming && contact.currentFlowState?.waitingForInput) {
       const inputNodeId = contact.currentFlowState.nodeId;
@@ -74,8 +75,13 @@ async function processMessage({ contact, flow, channel, text, postbackPayload, i
         flowId: flow._id,
         nodeId: startNodeId,
         waitingForInput: false,
-        variables: new Map(),
+        variables: new Map([
+          ['firstMessage', text || ''],
+          ['triggerMessage', text || ''],
+        ]),
       };
+      stateVariables.firstMessage = text || '';
+      stateVariables.triggerMessage = text || '';
     }
 
     // Update stats
@@ -96,8 +102,11 @@ async function processMessage({ contact, flow, channel, text, postbackPayload, i
       postbackPayload,
       customFieldsPlain,
       variables: {
+        ...stateVariables,
         lastMessage: text || '',
-        triggerMessage: text || '',
+        currentMessage: text || '',
+        firstMessage: stateVariables.firstMessage || text || '',
+        triggerMessage: stateVariables.triggerMessage || text || '',
         postbackPayload: postbackPayload || '',
       },
       replyContext: replyContext || { replyToken, used: false },
@@ -415,6 +424,13 @@ function renderTemplateString(str, context) {
 function resolveValue(value, context) {
   if (typeof value === 'string') return renderTemplateString(value, context);
   return value;
+}
+
+function mapToPlainObject(value) {
+  if (!value) return {};
+  if (value instanceof Map) return Object.fromEntries(value);
+  if (typeof value.toObject === 'function') return value.toObject();
+  return { ...value };
 }
 
 function sleep(ms) {
