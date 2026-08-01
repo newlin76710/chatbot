@@ -7,6 +7,21 @@ const { Contact, Channel, Flow } = require('../models');
 const { sendLineMessage, sendMessengerMessage, emitContactMessage } = require('../services');
 const { processMessage } = require('../services/flowEngine');
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function applyContactSearch(query, search) {
+  const term = search?.trim();
+  if (!term) return;
+  const regex = { $regex: escapeRegExp(term), $options: 'i' };
+  query.$or = [
+    { displayName: regex },
+    { platformId: regex },
+    { 'conversationHistory.content': regex },
+  ];
+}
+
 // GET /api/contacts
 router.get('/', auth, workspaceAuth('viewer'), async (req, res) => {
   try {
@@ -16,12 +31,7 @@ router.get('/', auth, workspaceAuth('viewer'), async (req, res) => {
 
     const query = { channel: channelId };
     if (tag) query.tags = tag;
-    if (search) {
-      query.$or = [
-        { displayName: { $regex: search, $options: 'i' } },
-        { platformId: { $regex: search, $options: 'i' } },
-      ];
-    }
+    applyContactSearch(query, search);
     if (dateFrom || dateTo) {
       const field = dateField === 'createdAt' ? 'createdAt' : 'lastInteractedAt';
       query[field] = {};
@@ -78,12 +88,7 @@ router.get('/export', auth, workspaceAuth('viewer'), async (req, res) => {
 
     const query = { channel: channelId };
     if (tag) query.tags = tag;
-    if (search) {
-      query.$or = [
-        { displayName: { $regex: search, $options: 'i' } },
-        { platformId: { $regex: search, $options: 'i' } },
-      ];
-    }
+    applyContactSearch(query, search);
     if (dateFrom || dateTo) {
       const field = dateField === 'createdAt' ? 'createdAt' : 'lastInteractedAt';
       query[field] = {};

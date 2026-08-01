@@ -499,7 +499,7 @@ export function ContactsPage() {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
         {/* 第一行：姓名搜尋 + 標籤 */}
         <input style={{ flex: '1 1 200px', maxWidth: 280, padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, outline: 'none' }}
-          placeholder="搜尋姓名或 ID..."
+          placeholder="搜尋姓名、ID 或聊天紀錄..."
           value={searchInput}
           onChange={e => setSearchInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') { setSearch(searchInput); setDateFrom(dateFromInput); setDateTo(dateToInput); setPage(1); } }} />
