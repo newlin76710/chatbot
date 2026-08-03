@@ -79,19 +79,27 @@ router.get('/me', require('../middleware/auth'), async (req, res) => {
 router.get('/facebook/url', (req, res) => {
   const { FB_APP_ID, FB_LOGIN_CONFIG_ID, BACKEND_URL } = process.env;
   if (!FB_APP_ID) return res.status(500).json({ error: '平台尚未設定 Facebook App ID，請聯繫管理員' });
-  if (!FB_LOGIN_CONFIG_ID) return res.status(500).json({ error: '平台尚未設定 FB_LOGIN_CONFIG_ID，請至 Meta App Dashboard 的 Facebook Login for Business > Configurations 建立設定並取得 config_id' });
 
   const redirectUri = `${BACKEND_URL || 'http://localhost:4000'}/api/auth/facebook/callback`;
-  // Facebook Login for Business 用 config_id 取代 scope（Meta 文件：config_id has replaced scope）
   const params = new URLSearchParams({
     client_id: FB_APP_ID,
     redirect_uri: redirectUri,
-    config_id: FB_LOGIN_CONFIG_ID,
     response_type: 'code',
-    override_default_response_type: 'true',
     auth_type: 'rerequest',   // 強制重新詢問所有權限
     state: Math.random().toString(36).slice(2),
   });
+
+  if (FB_LOGIN_CONFIG_ID) {
+    // 已設定 Facebook Login for Business 的 Configuration：用 config_id 取代 scope（支援 Instagram 私訊權限）
+    params.set('config_id', FB_LOGIN_CONFIG_ID);
+    params.set('override_default_response_type', 'true');
+  } else {
+    // 尚未設定 config_id：退回傳統 scope 流程（可連接 Messenger，但不含 Instagram 私訊權限）
+    const baseScopes = ['pages_show_list', 'pages_messaging', 'pages_manage_metadata', 'pages_read_engagement'];
+    const extraScopes = (process.env.FB_OAUTH_EXTRA_SCOPES || '').split(',').map(s => s.trim()).filter(Boolean);
+    params.set('scope', [...new Set([...baseScopes, ...extraScopes])].join(','));
+  }
+
   res.json({ url: `https://www.facebook.com/v18.0/dialog/oauth?${params}` });
 });
 
