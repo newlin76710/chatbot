@@ -262,6 +262,9 @@ async function handleMessengerEvent(event, channel) {
   // 過濾 echo 事件（機器人自己送出的訊息回傳），避免重複觸發流程
   if (message?.is_echo) return;
 
+  // 略過已讀、送達等回條事件（沒有真正訊息內容/按鈕/推薦連結），避免誤判為觸發
+  if (!message && !postback && !event.referral) return;
+
   // Meta 可能重複派送同一則訊息，用 mid 去重避免流程被觸發兩次
   if (message?.mid && isDuplicateMessage(message.mid)) {
     console.log('[Messenger] 重複的 webhook 訊息，略過:', message.mid);
@@ -520,6 +523,9 @@ async function handleInstagramEvent(event, channel) {
 
   // 過濾 echo 事件
   if (message?.is_echo) return;
+
+  // 略過已讀、送達等回條事件（沒有真正訊息內容/按鈕），避免誤判為觸發
+  if (!message && !postback) return;
 
   // Meta 可能重複派送同一則訊息，用 mid 去重避免流程被觸發兩次
   if (message?.mid && isDuplicateMessage(message.mid)) {
