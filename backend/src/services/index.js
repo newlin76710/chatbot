@@ -491,7 +491,7 @@ async function checkInputTimeouts() {
         await Contact.updateOne({ _id: contact._id }, { $set: updateOps });
         console.log(`[Scheduler] 已處理逾時提醒 ${contact.displayName || contact.platformId}，後續動作：${afterReminderAction}`);
       } catch (e) {
-        console.error(`[Scheduler] 提醒失敗 contact ${contact._id}:`, e.message, e.stack);
+        console.error(`[Scheduler] 提醒失敗 contact ${contact._id}:`, e.response?.data || e.message);
       }
     }
 
@@ -520,7 +520,7 @@ async function checkInputTimeouts() {
           console.log(`[Scheduler] 已自動跳過等待回覆 contact ${contact.displayName || contact.platformId}`);
         }
       } catch (e) {
-        console.error(`[Scheduler] 後續動作失敗 contact ${contact._id}:`, e.message);
+        console.error(`[Scheduler] 後續動作失敗 contact ${contact._id}:`, e.response?.data || e.message);
       }
     }
   } catch (e) {

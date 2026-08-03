@@ -350,10 +350,11 @@ router.post('/:id/send', auth, workspaceAuth('editor'), async (req, res) => {
         return res.status(400).json({ error: `不支援的平台：${channel.platform}` });
       }
     } catch (apiErr) {
-      const lineErr = apiErr.response?.data;
-      const errMsg = lineErr?.message || apiErr.message;
-      const details = lineErr?.details?.map(d => d.message).join('；') || '';
-      console.error('[傳訊息] LINE API 錯誤:', lineErr || apiErr.message);
+      const data = apiErr.response?.data;
+      const fbErr = data?.error;
+      const errMsg = fbErr?.message || data?.message || apiErr.message;
+      const details = data?.details?.map(d => d.message).join('；') || '';
+      console.error(`[傳訊息] ${channel.platform} API 錯誤:`, data || apiErr.message);
       return res.status(502).json({ error: `訊息發送失敗：${errMsg}${details ? `（${details}）` : ''}` });
     }
 
