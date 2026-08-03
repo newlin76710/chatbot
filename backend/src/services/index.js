@@ -176,7 +176,8 @@ async function sendMessengerMessage(channel, recipientId, message) {
   };
   await axios.post(
     `${GRAPH_API}/me/messages?access_token=${channel.credentials.accessToken}`,
-    body
+    body,
+    { timeout: 15000 }
   );
 }
 
