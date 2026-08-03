@@ -1009,8 +1009,9 @@ export function ChannelsPage() {
   const [showLinkForm, setShowLinkForm] = useState(false);
   const [linkId, setLinkId] = useState('');
   const [linking, setLinking] = useState(false);
-  const [form, setForm] = useState({ name: '', platform: 'line', accessToken: '', channelSecret: '' });
+  const [form, setForm] = useState({ name: '', platform: 'line', accessToken: '', channelSecret: '', pageId: '', igUserId: '' });
   const [syncingIds, setSyncingIds] = useState(new Set());
+  const [manualFbMode, setManualFbMode] = useState(false);
 
   // Facebook OAuth 連結狀態
   const [fbConnecting, setFbConnecting] = useState(false);
@@ -1153,14 +1154,17 @@ export function ChannelsPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await createChannel({
-        name: form.name, platform: form.platform,
-        credentials: { accessToken: form.accessToken, channelSecret: form.channelSecret },
-      });
+      const credentials = form.platform === 'line'
+        ? { accessToken: form.accessToken, channelSecret: form.channelSecret }
+        : form.platform === 'instagram'
+          ? { accessToken: form.accessToken, pageId: form.pageId, igUserId: form.igUserId }
+          : { accessToken: form.accessToken, pageId: form.pageId };
+      await createChannel({ name: form.name, platform: form.platform, credentials });
       toast.success('頻道建立成功！');
       setShowForm(false);
-      setForm({ name: '', platform: 'line', accessToken: '', channelSecret: '' });
-    } catch { toast.error('操作失敗'); }
+      setManualFbMode(false);
+      setForm({ name: '', platform: 'line', accessToken: '', channelSecret: '', pageId: '', igUserId: '' });
+    } catch { toast.error('操作失敗，請確認 Token 與 ID 是否正確'); }
   };
 
   const handleLink = async (e) => {
@@ -1284,8 +1288,8 @@ export function ChannelsPage() {
               </form>
             )}
 
-            {/* Messenger / Instagram：Facebook OAuth 一鍵連結 */}
-            {(form.platform === 'messenger' || form.platform === 'instagram') && (
+            {/* Messenger / Instagram：Facebook OAuth 一鍵連結 或 手動輸入 Token */}
+            {(form.platform === 'messenger' || form.platform === 'instagram') && !manualFbMode && (
               <div>
                 <div style={{ background: '#F0F2FF', borderRadius: 10, padding: '14px 16px', marginBottom: 20, fontSize: 13, color: '#374151', lineHeight: 1.6 }}>
                   點擊下方按鈕，透過 Facebook 帳號授權，系統會自動取得您管理的粉絲專頁並完成連結，無需手動複製 Token。
@@ -1297,11 +1301,57 @@ export function ChannelsPage() {
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
                   {fbConnecting ? '連結中…' : '用 Facebook 帳號連結粉絲專頁'}
                 </button>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14 }}>
+                  <button type="button" onClick={() => setManualFbMode(true)}
+                    style={{ padding: '8px 4px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 12.5, color: '#6366F1', textDecoration: 'underline' }}>改用手動輸入 Token</button>
                   <button type="button" onClick={() => setShowForm(false)}
                     style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #E2E8F0', background: 'none', cursor: 'pointer', fontSize: 13 }}>取消</button>
                 </div>
               </div>
+            )}
+
+            {(form.platform === 'messenger' || form.platform === 'instagram') && manualFbMode && (
+              <form onSubmit={handleSubmit}>
+                <div style={{ background: '#FFF7ED', borderRadius: 10, padding: '12px 14px', marginBottom: 16, fontSize: 12.5, color: '#9A3412', lineHeight: 1.6 }}>
+                  請至 Meta Business Suite 的商家設定 &gt; 系統使用者，為此粉專產生一組永久 Page Access Token，貼在下方。
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>頻道名稱</label>
+                  <input style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, boxSizing: 'border-box', outline: 'none' }}
+                    value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="我的粉絲專頁" required />
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>Page Access Token</label>
+                  <input style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, boxSizing: 'border-box', outline: 'none' }}
+                    value={form.accessToken} onChange={e => setForm(f => ({ ...f, accessToken: e.target.value }))}
+                    placeholder="EAAxxxxx..." required />
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>Facebook 粉專 ID</label>
+                  <input style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, boxSizing: 'border-box', outline: 'none' }}
+                    value={form.pageId} onChange={e => setForm(f => ({ ...f, pageId: e.target.value }))}
+                    placeholder="1234567890" required />
+                </div>
+                {form.platform === 'instagram' && (
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>Instagram 專業帳號 ID</label>
+                    <input style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', fontSize: 13, boxSizing: 'border-box', outline: 'none' }}
+                      value={form.igUserId} onChange={e => setForm(f => ({ ...f, igUserId: e.target.value }))}
+                      placeholder="17841400000000000" required />
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                  <button type="button" onClick={() => setManualFbMode(false)}
+                    style={{ padding: '8px 4px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 12.5, color: '#6366F1', textDecoration: 'underline' }}>改用一鍵授權</button>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button type="button" onClick={() => setShowForm(false)}
+                      style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #E2E8F0', background: 'none', cursor: 'pointer', fontSize: 13 }}>取消</button>
+                    <button type="submit"
+                      style={{ padding: '8px 18px', borderRadius: 8, background: '#6366F1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>建立</button>
+                  </div>
+                </div>
+              </form>
             )}
           </div>
         </div>
