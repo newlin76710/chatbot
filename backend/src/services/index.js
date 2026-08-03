@@ -175,6 +175,7 @@ async function sendMessengerMessage(channel, recipientId, message) {
     recipient: { id: recipientId },
     message: convertToMessengerFormat(message),
   };
+  console.log(`[Messenger/IG] 送出內容:`, JSON.stringify(body.message));
   await axios.post(
     `${GRAPH_API}/me/messages?access_token=${channel.credentials.accessToken}`,
     body,
