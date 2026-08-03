@@ -115,7 +115,7 @@ async function processMessage({ contact, flow, channel, text, postbackPayload, i
     await executeNode(startNodeId, context);
     await contact.save();
   } catch (err) {
-    console.error('[FlowEngine] Error:', err);
+    console.error('[FlowEngine] Error:', err.response?.data || err.message);
   }
 }
 

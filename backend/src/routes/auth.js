@@ -138,7 +138,7 @@ router.get('/facebook/callback', async (req, res) => {
     console.log('[FB OAuth] 開始 token exchange | redirectUri:', redirectUri, '| FB_APP_ID:', FB_APP_ID ? FB_APP_ID.slice(0,6)+'...' : 'MISSING');
 
     // 以 code 換取用戶 Access Token
-    const tokenRes = await axios.get('https://graph.facebook.com/v18.0/oauth/access_token', {
+    const tokenRes = await axios.get('https://graph.facebook.com/v26.0/oauth/access_token', {
       params: { client_id: FB_APP_ID, client_secret: FB_APP_SECRET, redirect_uri: redirectUri, code },
     });
     console.log('[FB OAuth] token exchange 回應 keys:', Object.keys(tokenRes.data));
@@ -154,7 +154,7 @@ router.get('/facebook/callback', async (req, res) => {
 
     // 方式 1：me/accounts（傳統方式）
     try {
-      const pagesRes = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
+      const pagesRes = await axios.get('https://graph.facebook.com/v26.0/me/accounts', {
         params: {
           access_token: userToken,
           fields: 'id,name,access_token,picture,instagram_business_account{id,username,name,profile_picture_url},connected_instagram_account{id,username,name,profile_picture_url}',
@@ -192,7 +192,7 @@ router.get('/facebook/callback', async (req, res) => {
         // 用 user token 逐一取得每個頁面的資料與 page access token
         for (const pageId of pageIds) {
           try {
-            const pageRes = await axios.get(`https://graph.facebook.com/v18.0/${pageId}`, {
+            const pageRes = await axios.get(`https://graph.facebook.com/v26.0/${pageId}`, {
               params: {
                 access_token: userToken,
                 fields: 'id,name,access_token,picture,instagram_business_account{id,username,name,profile_picture_url},connected_instagram_account{id,username,name,profile_picture_url}',
