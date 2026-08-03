@@ -99,14 +99,13 @@ async function handleLineEvent(event, channel) {
   } else if (type === 'postback') {
     postbackPayload = postback.data;
     triggerType = 'postback';
-    // 若 payload 為 JSON（例如 ManyChat 格式），嘗試取出 ti（按鈕文字）當作 text 處理
+    // 若 payload 為 JSON（例如 ManyChat 格式），取出 ti（按鈕文字）當作 text 處理，
+    // 並且不論有沒有 ti，都不能把原始 JSON 內容當作 postbackPayload/text 外流給使用者
     try {
       const parsed = JSON.parse(postback.data);
-      if (parsed?.ti) {
-        text = parsed.ti;
-        triggerType = 'keyword';
-        postbackPayload = '';
-      }
+      text = parsed?.ti || '';
+      postbackPayload = '';
+      if (text) triggerType = 'keyword';
     } catch (_) {}
   } else if (type === 'follow') {
     triggerType = 'follow';
