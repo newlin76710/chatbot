@@ -425,8 +425,10 @@ router.post('/instagram/:channelId', async (req, res) => {
     }
 
     const { entry } = req.body;
+    console.log('[Instagram] 收到原始 webhook payload:', JSON.stringify(req.body));
     for (const e of entry) {
       for (const messaging of (e.messaging || [])) {
+        console.log('[Instagram] messaging.sender:', JSON.stringify(messaging.sender), '| messaging.recipient:', JSON.stringify(messaging.recipient));
         await handleInstagramEvent(messaging, channel);
       }
     }
@@ -468,6 +470,7 @@ router.post('/instagram', async (req, res) => {
     }
 
     const { entry } = req.body;
+    console.log('[Instagram] 共用 webhook 收到原始 payload:', JSON.stringify(req.body));
     for (const e of entry || []) {
       const entryId = e.id;
       const channel = await Channel.findOne({
@@ -482,6 +485,7 @@ router.post('/instagram', async (req, res) => {
         continue;
       }
       for (const messaging of (e.messaging || [])) {
+        console.log('[Instagram] messaging.sender:', JSON.stringify(messaging.sender), '| messaging.recipient:', JSON.stringify(messaging.recipient));
         await handleInstagramEvent(messaging, channel);
       }
     }
