@@ -167,7 +167,7 @@ function convertToLineFormat(messages) {
 // ============================================================
 // services/messengerService.js
 // ============================================================
-const GRAPH_API = 'https://graph.facebook.com/v26.0';
+const GRAPH_API = 'https://graph.facebook.com/v25.0';
 
 async function sendMessengerMessage(channel, recipientId, message) {
   console.log(`[Messenger/IG] 發送對象 recipientId: ${recipientId} | channel: ${channel._id} (${channel.platform})`);

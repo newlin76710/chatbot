@@ -29,7 +29,7 @@ router.post('/', auth, workspaceAuth('admin'), async (req, res) => {
 
     if (['messenger', 'instagram'].includes(platform) && credentials?.accessToken && credentials?.pageId) {
       try {
-        await axios.post(`https://graph.facebook.com/v26.0/${credentials.pageId}/subscribed_apps`, null, {
+        await axios.post(`https://graph.facebook.com/v25.0/${credentials.pageId}/subscribed_apps`, null, {
           params: {
             subscribed_fields: 'messages,messaging_postbacks,messaging_referrals',
             access_token: credentials.accessToken,
@@ -73,7 +73,7 @@ router.put('/:id', auth, workspaceAuth('admin'), async (req, res) => {
 
     if (['messenger', 'instagram'].includes(channel.platform) && channel.credentials?.accessToken && channel.credentials?.pageId) {
       try {
-        await axios.post(`https://graph.facebook.com/v26.0/${channel.credentials.pageId}/subscribed_apps`, null, {
+        await axios.post(`https://graph.facebook.com/v25.0/${channel.credentials.pageId}/subscribed_apps`, null, {
           params: {
             subscribed_fields: 'messages,messaging_postbacks,messaging_referrals',
             access_token: channel.credentials.accessToken,
@@ -167,7 +167,7 @@ router.post('/:id/sync-messenger-contacts', auth, workspaceAuth('admin'), async 
     if (!accessToken || !pageId) return res.status(400).json({ error: '此頻道尚未設定 Page Access Token 或 Page ID' });
 
     const participants = new Map(); // platformId -> displayName
-    let url = `https://graph.facebook.com/v26.0/${pageId}/conversations`;
+    let url = `https://graph.facebook.com/v25.0/${pageId}/conversations`;
     let params = { fields: 'participants', limit: 100, access_token: accessToken };
 
     do {
@@ -229,7 +229,7 @@ router.post('/:id/sync-instagram-contacts', auth, workspaceAuth('admin'), async 
     if (!accessToken || !igUserId) return res.status(400).json({ error: '此頻道缺少 Page Access Token 或 IG User ID' });
 
     const participants = new Map();
-    let url = `https://graph.facebook.com/v26.0/${igUserId}/conversations`;
+    let url = `https://graph.facebook.com/v25.0/${igUserId}/conversations`;
     let params = { platform: 'instagram', fields: 'participants', limit: 100, access_token: accessToken };
 
     do {
