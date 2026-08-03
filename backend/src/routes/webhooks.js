@@ -5,6 +5,20 @@ const { Channel, Contact, Flow, Campaign } = require('../models');
 const { processMessage } = require('../services/flowEngine');
 const { emitContactMessage, emitContactNew } = require('../services');
 
+// Meta webhook 可能重複派送同一則訊息，用 mid 去重避免流程被觸發兩次
+const _processedMessageIds = new Map(); // mid -> 收到時間
+const DEDUP_TTL_MS = 5 * 60 * 1000;
+function isDuplicateMessage(mid) {
+  if (!mid) return false;
+  const now = Date.now();
+  for (const [id, ts] of _processedMessageIds) {
+    if (now - ts > DEDUP_TTL_MS) _processedMessageIds.delete(id);
+  }
+  if (_processedMessageIds.has(mid)) return true;
+  _processedMessageIds.set(mid, now);
+  return false;
+}
+
 // ─── LINE Webhook ─────────────────────────────────────────────
 router.post('/line/:channelId', async (req, res) => {
   // Immediately return 200 to LINE
@@ -247,6 +261,12 @@ async function handleMessengerEvent(event, channel) {
 
   // 過濾 echo 事件（機器人自己送出的訊息回傳），避免重複觸發流程
   if (message?.is_echo) return;
+
+  // Meta 可能重複派送同一則訊息，用 mid 去重避免流程被觸發兩次
+  if (message?.mid && isDuplicateMessage(message.mid)) {
+    console.log('[Messenger] 重複的 webhook 訊息，略過:', message.mid);
+    return;
+  }
 
   let contact = await Contact.findOneAndUpdate(
     { platformId: sender.id, channel: channel._id, platform: 'messenger' },
@@ -500,6 +520,12 @@ async function handleInstagramEvent(event, channel) {
 
   // 過濾 echo 事件
   if (message?.is_echo) return;
+
+  // Meta 可能重複派送同一則訊息，用 mid 去重避免流程被觸發兩次
+  if (message?.mid && isDuplicateMessage(message.mid)) {
+    console.log('[Instagram] 重複的 webhook 訊息，略過:', message.mid);
+    return;
+  }
 
   let contact = await Contact.findOneAndUpdate(
     { platformId: sender.id, channel: channel._id, platform: 'instagram' },
