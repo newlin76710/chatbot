@@ -77,28 +77,19 @@ router.get('/me', require('../middleware/auth'), async (req, res) => {
 
 // GET /api/auth/facebook/url — 回傳 Facebook OAuth 授權網址
 router.get('/facebook/url', (req, res) => {
-  const { FB_APP_ID, BACKEND_URL } = process.env;
+  const { FB_APP_ID, FB_LOGIN_CONFIG_ID, BACKEND_URL } = process.env;
   if (!FB_APP_ID) return res.status(500).json({ error: '平台尚未設定 Facebook App ID，請聯繫管理員' });
+  if (!FB_LOGIN_CONFIG_ID) return res.status(500).json({ error: '平台尚未設定 FB_LOGIN_CONFIG_ID，請至 Meta App Dashboard 的 Facebook Login for Business > Configurations 建立設定並取得 config_id' });
 
   const redirectUri = `${BACKEND_URL || 'http://localhost:4000'}/api/auth/facebook/callback`;
-  const baseScopes = [
-    'pages_show_list',
-    'pages_messaging',
-    'pages_manage_metadata',
-    'pages_read_engagement',
-    'instagram_business_basic',
-    'instagram_business_manage_messages',
-  ];
-  const extraScopes = (process.env.FB_OAUTH_EXTRA_SCOPES || '')
-    .split(',')
-    .map(scope => scope.trim())
-    .filter(Boolean);
+  // Facebook Login for Business 用 config_id 取代 scope（Meta 文件：config_id has replaced scope）
   const params = new URLSearchParams({
     client_id: FB_APP_ID,
     redirect_uri: redirectUri,
-    scope: [...new Set([...baseScopes, ...extraScopes])].join(','),
+    config_id: FB_LOGIN_CONFIG_ID,
     response_type: 'code',
-    auth_type: 'rerequest',   // 強制重新詢問所有權限（包含新增的 pages_show_list）
+    override_default_response_type: 'true',
+    auth_type: 'rerequest',   // 強制重新詢問所有權限
     state: Math.random().toString(36).slice(2),
   });
   res.json({ url: `https://www.facebook.com/v18.0/dialog/oauth?${params}` });
