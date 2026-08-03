@@ -1073,8 +1073,8 @@ export function ChannelsPage() {
           setFbConnecting(false);
         }
       }, 120000);
-    } catch {
-      toast.error('無法取得 Facebook 授權網址，請確認平台已設定 FB_APP_ID');
+    } catch (err) {
+      toast.error(err.response?.data?.error || '無法取得 Facebook 授權網址，請確認平台已設定 FB_APP_ID');
       setFbConnecting(false);
     }
   };
