@@ -176,11 +176,12 @@ async function sendMessengerMessage(channel, recipientId, message) {
     message: convertToMessengerFormat(message),
   };
   console.log(`[Messenger/IG] 送出內容:`, JSON.stringify(body.message));
-  await axios.post(
+  const resp = await axios.post(
     `${GRAPH_API}/me/messages?access_token=${channel.credentials.accessToken}`,
     body,
     { timeout: 15000 }
   );
+  console.log(`[Messenger/IG] Facebook 回應:`, JSON.stringify(resp.data));
 }
 
 async function sendMessengerBroadcast(channel, recipientIds, messages) {
