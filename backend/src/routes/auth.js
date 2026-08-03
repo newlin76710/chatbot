@@ -86,6 +86,8 @@ router.get('/facebook/url', (req, res) => {
     'pages_messaging',
     'pages_manage_metadata',
     'pages_read_engagement',
+    'instagram_basic',
+    'instagram_manage_messages',
   ];
   const extraScopes = (process.env.FB_OAUTH_EXTRA_SCOPES || '')
     .split(',')
