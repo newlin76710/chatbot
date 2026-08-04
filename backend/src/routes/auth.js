@@ -213,15 +213,12 @@ router.get('/facebook/callback', async (req, res) => {
       return sendToOpener({ type: 'fb_error', error: '未找到可連結的粉絲專頁，請確認授權時已勾選所有權限並選擇粉絲專頁。' });
     }
 
-    // 針對每個有連結 IG 的粉專，額外實際呼叫 Graph API（而非僅靠 me/accounts 的巢狀欄位），
-    // 讓 Meta 記錄到 App 本身（非 Explorer）對 instagram_basic / instagram_manage_messages 的真實使用軌跡
+    // 針對每個有連結 IG 的粉專，額外實際呼叫 Graph API 查詢 IG 帳號本身（而非僅靠 me/accounts 的巢狀欄位），
+    // 讓 Meta 記錄到 App 本身（非 Explorer）對 instagram_basic 的真實使用軌跡
     for (const page of pages) {
       const igAccount = page.instagram_business_account || page.connected_instagram_account;
       if (!igAccount?.id) continue;
       try {
-        await axios.get(`https://graph.facebook.com/v25.0/${page.id}`, {
-          params: { access_token: page.access_token, fields: 'instagram_business_account' },
-        });
         const igRes = await axios.get(`https://graph.facebook.com/v25.0/${igAccount.id}`, {
           params: { access_token: page.access_token, fields: 'id,username' },
         });
