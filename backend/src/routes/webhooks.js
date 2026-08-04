@@ -96,6 +96,14 @@ async function handleLineEvent(event, channel) {
   if (type === 'message' && message?.type === 'text') {
     text = message.text;
     triggerType = 'keyword';
+    // ManyChat 按鈕有時不是用 postback，而是直接把原始 JSON 當成一般文字訊息傳回來，
+    // 同樣要取出 ti，避免原始 JSON 外流給使用者
+    if (text.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed?.ti !== undefined) text = parsed.ti || '';
+      } catch (_) {}
+    }
   } else if (type === 'postback') {
     postbackPayload = postback.data;
     triggerType = 'postback';
